@@ -17,7 +17,7 @@ export const SocketProvider = ({ children }) => {
     if (user) {
       console.log('🔌 Initializing socket connection for user:', user._id);
       
-      const newSocket = io('http://localhost:5000', {
+      const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:5000', {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,

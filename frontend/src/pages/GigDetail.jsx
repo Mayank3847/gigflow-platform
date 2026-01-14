@@ -25,7 +25,9 @@ const GigDetail = () => {
   useEffect(() => {
     const fetchGig = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/gigs/${id}`);
+      const response = await axios.get(
+  `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/gigs/${id}`
+);
         setGig(response.data);
         setLoading(false);
       } catch (error) {
