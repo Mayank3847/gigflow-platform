@@ -11,15 +11,23 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Trust proxy (REQUIRED for secure cookies on Render)
+// ✅ REQUIRED for secure cookies behind Render proxy
 app.set('trust proxy', 1);
+
+// =======================
+// ALLOWED ORIGINS (DEV + PROD)
+// =======================
+const allowedOrigins = [
+  process.env.CLIENT_URL,        // Netlify
+  'http://localhost:5173'        // Local dev
+];
 
 // =======================
 // Socket.io setup
 // =======================
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -29,18 +37,30 @@ const io = new Server(server, {
 // GLOBAL MIDDLEWARE
 // =======================
 
-// ✅ CORS — hardened, production-safe
+// ✅ CORRECT CORS (THIS FIXES YOUR ISSUE)
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // allow non-browser clients (Postman, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ✅ Body parser
+// Handle preflight explicitly (important)
+app.options('*', cors());
+
+// Body parser
 app.use(express.json());
 
-// ✅ cookie-parser MUST be BEFORE routes (YOU DID THIS RIGHT)
+// Cookie parser MUST be before routes
 app.use(cookieParser());
 
 // =======================
@@ -53,7 +73,7 @@ mongoose.connect(process.env.MONGODB_URI)
 // =======================
 // Socket.io logic
 // =======================
-const connectedUsers = new Map(); // userId -> socketId
+const connectedUsers = new Map();
 
 io.on('connection', (socket) => {
   console.log('✅ User connected:', socket.id);
@@ -77,7 +97,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io accessible in routes
+// Make io accessible to routes
 app.set('io', io);
 app.set('connectedUsers', connectedUsers);
 
@@ -118,7 +138,7 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Debug cookies (VERY USEFUL)
+// Debug cookies
 app.get('/api/debug/cookies', (req, res) => {
   res.json({
     cookies: req.cookies,
@@ -145,7 +165,7 @@ app.use((req, res) => {
 // ERROR HANDLER
 // =======================
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err.stack);
+  console.error('❌ Error:', err.message);
   res.status(err.status || 500).json({
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'production'
