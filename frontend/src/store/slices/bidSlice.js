@@ -1,21 +1,23 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import { api } from './authSlice'; // ✅ USE SAME AUTHENTICATED AXIOS INSTANCE
 
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/bids`;
-
-axios.defaults.withCredentials = true;
+// ============================================
+// Async Thunks
+// ============================================
 
 export const createBid = createAsyncThunk(
   'bids/create',
   async (bidData, { rejectWithValue }) => {
     try {
       console.log('🚀 Sending bid to API:', bidData);
-      const response = await axios.post(API_URL, bidData);
+      const response = await api.post('/api/bids', bidData);
       console.log('✅ API response:', response.data);
       return response.data;
     } catch (error) {
       console.log('❌ API error:', error.response?.data);
-      return rejectWithValue(error.response?.data?.message || 'Failed to create bid');
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to create bid'
+      );
     }
   }
 );
@@ -24,10 +26,12 @@ export const fetchBidsByGig = createAsyncThunk(
   'bids/fetchByGig',
   async (gigId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/${gigId}`);
+      const response = await api.get(`/api/bids/${gigId}`);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch bids');
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch bids'
+      );
     }
   }
 );
@@ -36,10 +40,12 @@ export const fetchMyBids = createAsyncThunk(
   'bids/fetchMy',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`${API_URL}/my/bids`);
+      const response = await api.get('/api/bids/my/bids');
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch bids');
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch bids'
+      );
     }
   }
 );
@@ -49,47 +55,58 @@ export const hireBid = createAsyncThunk(
   async (bidId, { rejectWithValue }) => {
     try {
       console.log('💼 Hiring bid:', bidId);
-      const response = await axios.patch(`${API_URL}/${bidId}/hire`);
+      const response = await api.patch(`/api/bids/${bidId}/hire`);
       console.log('✅ Hire response:', response.data);
       return response.data;
     } catch (error) {
       console.log('❌ Hire error:', error.response?.data);
-      return rejectWithValue(error.response?.data?.message || 'Failed to hire freelancer');
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to hire freelancer'
+      );
     }
   }
 );
 
-// NEW: Reject bid action
 export const rejectBid = createAsyncThunk(
   'bids/reject',
   async (bidId, { rejectWithValue }) => {
     try {
       console.log('❌ Rejecting bid:', bidId);
-      const response = await axios.patch(`${API_URL}/${bidId}/reject`);
+      const response = await api.patch(`/api/bids/${bidId}/reject`);
       console.log('✅ Reject response:', response.data);
       return response.data;
     } catch (error) {
       console.log('❌ Reject error:', error.response?.data);
-      return rejectWithValue(error.response?.data?.message || 'Failed to reject bid');
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to reject bid'
+      );
     }
   }
 );
 
-// NEW: Update bid action
 export const updateBid = createAsyncThunk(
   'bids/update',
   async ({ bidId, price, message }, { rejectWithValue }) => {
     try {
       console.log('📝 Updating bid:', bidId);
-      const response = await axios.patch(`${API_URL}/${bidId}/update`, { price, message });
+      const response = await api.patch(`/api/bids/${bidId}/update`, {
+        price,
+        message,
+      });
       console.log('✅ Update response:', response.data);
       return response.data;
     } catch (error) {
       console.log('❌ Update error:', error.response?.data);
-      return rejectWithValue(error.response?.data?.message || 'Failed to update bid');
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to update bid'
+      );
     }
   }
 );
+
+// ============================================
+// Slice
+// ============================================
 
 const bidSlice = createSlice({
   name: 'bids',
@@ -134,6 +151,7 @@ const bidSlice = createSlice({
         state.isSuccess = false;
         state.message = action.payload;
       })
+
       // Fetch Bids by Gig
       .addCase(fetchBidsByGig.pending, (state) => {
         state.isLoading = true;
@@ -147,6 +165,7 @@ const bidSlice = createSlice({
         state.isError = true;
         state.message = action.payload;
       })
+
       // Fetch My Bids
       .addCase(fetchMyBids.pending, (state) => {
         state.isLoading = true;
@@ -160,6 +179,7 @@ const bidSlice = createSlice({
         state.isError = true;
         state.message = action.payload;
       })
+
       // Hire Bid
       .addCase(hireBid.pending, (state) => {
         console.log('⏳ Hiring pending...');
@@ -168,7 +188,7 @@ const bidSlice = createSlice({
         state.isSuccess = false;
         state.message = '';
       })
-      .addCase(hireBid.fulfilled, (state, action) => {
+      .addCase(hireBid.fulfilled, (state) => {
         console.log('✅ Hiring fulfilled');
         state.isLoading = false;
         state.isSuccess = true;
@@ -180,14 +200,15 @@ const bidSlice = createSlice({
         state.isError = true;
         state.message = action.payload;
       })
-      // Reject Bid - NEW
+
+      // Reject Bid
       .addCase(rejectBid.pending, (state) => {
         console.log('⏳ Rejecting bid...');
         state.isLoading = true;
         state.isError = false;
         state.isSuccess = false;
       })
-      .addCase(rejectBid.fulfilled, (state, action) => {
+      .addCase(rejectBid.fulfilled, (state) => {
         console.log('✅ Bid rejected');
         state.isLoading = false;
         state.isSuccess = true;
@@ -199,7 +220,8 @@ const bidSlice = createSlice({
         state.isError = true;
         state.message = action.payload;
       })
-      // Update Bid - NEW
+
+      // Update Bid
       .addCase(updateBid.pending, (state) => {
         console.log('⏳ Updating bid...');
         state.isLoading = true;
@@ -211,8 +233,9 @@ const bidSlice = createSlice({
         state.isLoading = false;
         state.isSuccess = true;
         state.message = 'Bid updated successfully!';
-        // Update the bid in myBids array
-        const index = state.myBids.findIndex(bid => bid._id === action.payload.bid._id);
+        const index = state.myBids.findIndex(
+          (bid) => bid._id === action.payload.bid._id
+        );
         if (index !== -1) {
           state.myBids[index] = action.payload.bid;
         }
