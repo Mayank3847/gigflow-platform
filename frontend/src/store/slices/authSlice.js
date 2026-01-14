@@ -320,6 +320,8 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.message = '';
         state.isLoading = false;
+        dispatch(clearNotifications());
+
       })
       .addCase(logout.rejected, (state) => {
         // Clear anyway even if logout fails

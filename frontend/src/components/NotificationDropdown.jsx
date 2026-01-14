@@ -6,7 +6,9 @@ import { useNavigate } from 'react-router-dom';
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { notifications } = useSelector((state) => state.notifications)|| [];
+const notifications =
+  useSelector((state) => state.notifications?.notifications) || [];
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
