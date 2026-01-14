@@ -93,8 +93,9 @@ exports.login = async (req, res) => {
     // Set SESSION cookie (no maxAge, no expires)
     res.cookie('token', token, {
       httpOnly: true,
-      secure: false, // Set to false for localhost
-      sameSite: 'lax', // Changed from 'strict' to 'lax'
+  secure: true,        // REQUIRED (Netlify + Render = HTTPS)
+  sameSite: "None",    // REQUIRED for cross-domain
+  maxAge: 7 * 24 * 60 * 60 * 1000,// Changed from 'strict' to 'lax'
       path: '/'
     });
 
