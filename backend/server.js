@@ -42,7 +42,6 @@ const connectedUsers = new Map(); // Store userId -> socketId mapping
 io.on('connection', (socket) => {
   console.log('✅ User connected:', socket.id);
 
-  // User joins their personal room
   socket.on('join', (userId) => {
     socket.join(userId);
     connectedUsers.set(userId, socket.id);
@@ -51,7 +50,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // Remove user from connected users
     for (let [userId, socketId] of connectedUsers.entries()) {
       if (socketId === socket.id) {
         connectedUsers.delete(userId);
@@ -67,7 +65,7 @@ io.on('connection', (socket) => {
 app.set('io', io);
 app.set('connectedUsers', connectedUsers);
 
-// ✅ Root route - THIS FIXES THE "Cannot GET /" ERROR
+// Root route
 app.get('/', (req, res) => {
   res.json({ 
     message: '🚀 Gigflow Backend API is running!',
@@ -82,7 +80,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check route (useful for monitoring)
+// Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy',
@@ -91,7 +89,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Test route to check if server is running
+// Test route
 app.get('/api/test', (req, res) => {
   res.json({ 
     message: 'Server is running!',
@@ -100,7 +98,7 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Debug endpoint - check cookies
+// Debug cookies
 app.get('/api/debug/cookies', (req, res) => {
   res.json({
     cookies: req.cookies,
@@ -113,8 +111,12 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/gigs', require('./routes/gigs'));
 app.use('/api/bids', require('./routes/bids'));
 
-// 404 handler for undefined routes
-app.use('*', (req, res) => {
+/**
+ * ✅ FIXED 404 HANDLER
+ * ❌ app.use('*', ...)  <-- CRASHES on Node 22
+ * ✅ Middleware fallback keeps SAME behavior
+ */
+app.use((req, res) => {
   res.status(404).json({ 
     message: 'Route not found',
     requestedPath: req.originalUrl
@@ -125,8 +127,10 @@ app.use('*', (req, res) => {
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.stack);
   res.status(err.status || 500).json({ 
-    message: 'Something went wrong!', 
-    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message 
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message 
   });
 });
 
