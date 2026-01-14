@@ -8,11 +8,11 @@ const generateToken = (id) => {
   });
 };
 
-// Common cookie options (IMPORTANT)
+// ✅ Cookie options (PRODUCTION SAFE)
 const cookieOptions = {
   httpOnly: true,
-  secure: true,          // 🔴 REQUIRED for HTTPS (Render)
-  sameSite: 'None',      // 🔴 REQUIRED for cross-domain
+  secure: true,          // REQUIRED for Render (HTTPS)
+  sameSite: 'None',      // REQUIRED for Netlify ⇄ Render
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000
 };
@@ -43,10 +43,7 @@ exports.register = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // Clear any existing cookie
-    res.clearCookie('token', cookieOptions);
-
-    // ✅ Set cookie (FIXED)
+    // ✅ SET COOKIE (DO NOT CLEAR BEFORE SET)
     res.cookie('token', token, cookieOptions);
 
     console.log('✅ User registered, auth cookie set');
@@ -91,15 +88,12 @@ exports.login = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // Clear old cookie
-    res.clearCookie('token', cookieOptions);
-
-    // ✅ Set cookie (FIXED)
+    // ✅ SET COOKIE (NO PRE-CLEAR)
     res.cookie('token', token, cookieOptions);
 
     console.log('✅ User logged in, auth cookie set');
 
-    res.json({
+    res.status(200).json({
       _id: user._id,
       name: user.name,
       email: user.email
@@ -115,8 +109,13 @@ exports.login = async (req, res) => {
 
 // @route   POST /api/auth/logout
 exports.logout = (req, res) => {
-  // ✅ Clear cookie with SAME options
-  res.clearCookie('token', cookieOptions);
+  // ✅ Clear cookie correctly (no maxAge)
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'None',
+    path: '/'
+  });
 
   console.log('✅ User logged out, cookie cleared');
 
