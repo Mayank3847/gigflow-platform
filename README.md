@@ -80,9 +80,15 @@ VITE_API_URL=https://gigflow-backend-qfln.onrender.com
 
 ## 🚀 Deployment
 
-**Frontend**: Netlify  
+**Frontend**: Netlify 
+**Frontend URL**:https://gigflow-platform-ms7295.netlify.app/
 **Backend**: Render.com  
+**Backend URL**https://gigflow-backend-qfln.onrender.com
 **Database**: MongoDB Atlas
+
+
+**Live Link**:https://gigflow-platform-ms7295.netlify.app/
+
 
 ## 📝 API Endpoints
 
