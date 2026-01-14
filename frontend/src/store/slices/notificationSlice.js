@@ -2,14 +2,14 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
-  notifications: [],
+  notifications: [], // bell + toasts share same store
 };
 
 const notificationSlice = createSlice({
   name: 'notifications',
   initialState,
   reducers: {
-    // ➕ Add one notification
+    // 🔔 Add notification / toast
     addNotification: (state, action) => {
       state.notifications.unshift({
         ...action.payload,
@@ -17,21 +17,23 @@ const notificationSlice = createSlice({
       });
     },
 
-    // ♻️ Restore notifications (used by SocketContext)
+    // ♻️ Restore persisted notifications
     setNotifications: (state, action) => {
       state.notifications = action.payload || [];
     },
 
-    // ❌ Remove single notification (used by NotificationDropdown)
+    // ❌ Remove ONE notification (dropdown X button)
     removeNotification: (state, action) => {
       state.notifications = state.notifications.filter(
         (n) => n.id !== action.payload
       );
     },
 
-    // 🧹 Clear all notifications (logout / clear-all)
-    clearNotifications: (state) => {
-      state.notifications = [];
+    // ❌ Remove toast (used by NotificationToast auto-dismiss)
+    removeToast: (state, action) => {
+      state.notifications = state.notifications.filter(
+        (n) => n.id !== action.payload
+      );
     },
 
     // 🔕 Mark all as read
@@ -41,13 +43,19 @@ const notificationSlice = createSlice({
         read: true,
       }));
     },
+
+    // 🧹 Clear all (logout)
+    clearNotifications: (state) => {
+      state.notifications = [];
+    },
   },
 });
 
 export const {
   addNotification,
   setNotifications,
-  removeNotification,   // 🔥 THIS FIXES CURRENT BUILD
+  removeNotification,
+  removeToast,          // ✅ THIS FIXES CURRENT BUILD
   clearNotifications,
   markAllAsRead,
 } = notificationSlice.actions;
