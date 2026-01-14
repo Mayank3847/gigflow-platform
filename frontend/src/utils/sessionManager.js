@@ -1,30 +1,54 @@
-// src/utils/sessionManager.js - Session Management Utility
+// src/utils/sessionManager.js - Session Management Utility (FIXED)
 
 const SESSION_KEYS = {
   TOKEN: 'token',
   USER: 'user',
   SESSION_EXPIRY: 'sessionExpiry',
+  BROWSER_SESSION: 'browserSession', // ✅ NEW
 };
 
 class SessionManager {
   /**
    * ✅ INIT SESSION (USED BY App.jsx)
-   * Checks whether an existing valid session exists
+   * ❗ FIXED:
+   * - Forces login on browser restart
+   * - Allows same-tab refresh
+   * - NO feature loss
    */
   initSession() {
     try {
+      const hasBrowserSession = sessionStorage.getItem(
+        SESSION_KEYS.BROWSER_SESSION
+      );
+
+      // 🔴 Browser was fully restarted → force logout
+      if (!hasBrowserSession) {
+        console.log('🚪 New browser session detected - forcing logout');
+        this.clearSession();
+
+        // Mark fresh browser session
+        sessionStorage.setItem(
+          SESSION_KEYS.BROWSER_SESSION,
+          'active'
+        );
+
+        return false;
+      }
+
+      // 🟡 Same browser session → check expiry
       const isActive = this.isSessionActive();
 
       if (!isActive) {
-        console.log('🔄 New browser session detected - clearing auth');
+        console.log('⏰ Session expired - clearing auth');
         this.clearSession();
         return false;
       }
 
-      console.log('✅ Existing session restored');
+      console.log('♻️ Existing in-tab session restored');
       return true;
     } catch (error) {
       console.error('❌ SessionManager: initSession failed', error);
+      this.clearSession();
       return false;
     }
   }
@@ -36,9 +60,22 @@ class SessionManager {
     try {
       if (!this.getToken()) return false;
 
-      const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000);
-      localStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiryTime.toString());
-      sessionStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiryTime.toString());
+      const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
+
+      localStorage.setItem(
+        SESSION_KEYS.SESSION_EXPIRY,
+        expiryTime.toString()
+      );
+      sessionStorage.setItem(
+        SESSION_KEYS.SESSION_EXPIRY,
+        expiryTime.toString()
+      );
+
+      // ✅ Ensure browser session marker exists
+      sessionStorage.setItem(
+        SESSION_KEYS.BROWSER_SESSION,
+        'active'
+      );
 
       console.log('✅ Session marked as active');
       return true;
@@ -48,7 +85,7 @@ class SessionManager {
     }
   }
 
-  // ================= EXISTING CODE (UNCHANGED) =================
+  // ================= EXISTING CODE (UNCHANGED LOGIC) =================
 
   setSession(token, user) {
     try {
@@ -58,7 +95,9 @@ class SessionManager {
       sessionStorage.setItem(SESSION_KEYS.TOKEN, token);
 
       if (user) {
-        const userData = typeof user === 'string' ? user : JSON.stringify(user);
+        const userData =
+          typeof user === 'string' ? user : JSON.stringify(user);
+
         localStorage.setItem(SESSION_KEYS.USER, userData);
         sessionStorage.setItem(SESSION_KEYS.USER, userData);
       }
@@ -71,14 +110,16 @@ class SessionManager {
   }
 
   getToken() {
-    return sessionStorage.getItem(SESSION_KEYS.TOKEN)
-      || localStorage.getItem(SESSION_KEYS.TOKEN);
+    return (
+      sessionStorage.getItem(SESSION_KEYS.TOKEN) ||
+      localStorage.getItem(SESSION_KEYS.TOKEN)
+    );
   }
 
   getUser() {
     const user =
-      sessionStorage.getItem(SESSION_KEYS.USER)
-      || localStorage.getItem(SESSION_KEYS.USER);
+      sessionStorage.getItem(SESSION_KEYS.USER) ||
+      localStorage.getItem(SESSION_KEYS.USER);
 
     if (!user) return null;
 
@@ -94,8 +135,8 @@ class SessionManager {
     if (!token) return false;
 
     const expiry =
-      localStorage.getItem(SESSION_KEYS.SESSION_EXPIRY)
-      || sessionStorage.getItem(SESSION_KEYS.SESSION_EXPIRY);
+      localStorage.getItem(SESSION_KEYS.SESSION_EXPIRY) ||
+      sessionStorage.getItem(SESSION_KEYS.SESSION_EXPIRY);
 
     if (!expiry) return false;
 
@@ -107,13 +148,16 @@ class SessionManager {
       localStorage.removeItem(key);
       sessionStorage.removeItem(key);
     });
+
     return true;
   }
 
   updateUser(user) {
     if (!user) return false;
 
-    const data = typeof user === 'string' ? user : JSON.stringify(user);
+    const data =
+      typeof user === 'string' ? user : JSON.stringify(user);
+
     localStorage.setItem(SESSION_KEYS.USER, data);
     sessionStorage.setItem(SESSION_KEYS.USER, data);
     return true;

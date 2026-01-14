@@ -1,28 +1,94 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+} from 'react';
 import { io } from 'socket.io-client';
 import { useSelector, useDispatch } from 'react-redux';
-import { addNotification } from '../store/slices/notificationSlice';
+import {
+  addNotification,
+  setNotifications,
+  clearNotifications,
+} from '../store/slices/notificationSlice';
 
 const SocketContext = createContext();
 export const useSocket = () => useContext(SocketContext);
 
+// 🔑 Per-user notification storage
+const getStorageKey = (userId) => `notifications_${userId}`;
+
 export const SocketProvider = ({ children }) => {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
-  const { user } = useSelector((state) => state.auth);
+
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
 
+  // ======================================================
+  // 🔕 MARK ALL AS READ
+  // ======================================================
+  const markAllAsRead = useCallback(() => {
+    if (!user?._id) return;
+
+    const storageKey = getStorageKey(user._id);
+    const existing = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+    const updated = existing.map((n) => ({
+      ...n,
+      read: true,
+    }));
+
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+    dispatch(setNotifications(updated));
+  }, [user, dispatch]);
+
+  // ======================================================
+  // 🧹 CLEAR ON LOGOUT
+  // ======================================================
   useEffect(() => {
-    // ✅ WAIT for user to exist (prevents race)
-    if (!user?._id) {
+    if (!isAuthenticated && socketRef.current) {
+      console.log('🧹 Clearing notifications + socket on logout');
+
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setConnected(false);
+
+      dispatch(clearNotifications());
+
+      if (user?._id) {
+        localStorage.removeItem(getStorageKey(user._id));
+      }
+    }
+  }, [isAuthenticated, user, dispatch]);
+
+  // ======================================================
+  // 🔌 SOCKET INIT
+  // ======================================================
+  useEffect(() => {
+    if (!isAuthenticated || !user?._id) {
       console.log('⏳ Waiting for authenticated user before socket init');
       return;
     }
 
-    // ⛔ Prevent duplicate sockets
-    if (socketRef.current) return;
+    if (socketRef.current) return; // ⛔ no duplicates
 
     console.log('🔌 Initializing socket for user:', user._id);
+
+    const storageKey = getStorageKey(user._id);
+
+    // ♻️ Restore notifications
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        dispatch(setNotifications(JSON.parse(saved)));
+        console.log('♻️ Notifications restored');
+      } catch {
+        console.warn('⚠️ Failed to parse stored notifications');
+      }
+    }
 
     const socket = io(
       import.meta.env.VITE_API_URL || 'http://localhost:5000',
@@ -47,34 +113,55 @@ export const SocketProvider = ({ children }) => {
       setConnected(false);
     });
 
+    // ======================================================
+    // 🔔 CENTRAL NOTIFICATION HANDLER
+    // ======================================================
+    const handleNotification = (payload, type) => {
+      const notification = {
+        id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        message: payload.message,
+        type,
+        timestamp: payload.timestamp || new Date().toISOString(),
+        gigId: payload.gigId,
+        read: false,
+      };
+
+      // 1️⃣ Redux
+      dispatch(addNotification(notification));
+
+      // 2️⃣ Persist per user
+      const existing =
+        JSON.parse(localStorage.getItem(storageKey)) || [];
+
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify([notification, ...existing])
+      );
+
+      // 3️⃣ ACK BACK TO SERVER (delivery confirmed)
+      socket.emit('notification:ack', {
+        notificationId: notification.id,
+        userId: user._id,
+        type,
+      });
+    };
+
+    // ======================================================
+    // 📡 SOCKET EVENTS
+    // ======================================================
     socket.on('newBid', (data) => {
-      dispatch(addNotification({
-        id: Date.now(),
-        message: data.message,
-        type: 'info',
-        timestamp: data.timestamp,
-        gigId: data.gigId,
-      }));
+      console.log('📨 newBid');
+      handleNotification(data, 'info');
     });
 
     socket.on('hired', (data) => {
-      dispatch(addNotification({
-        id: Date.now(),
-        message: data.message,
-        type: 'success',
-        timestamp: data.timestamp,
-        gigId: data.gigId,
-      }));
+      console.log('🎉 hired');
+      handleNotification(data, 'success');
     });
 
     socket.on('bidRejected', (data) => {
-      dispatch(addNotification({
-        id: Date.now(),
-        message: data.message,
-        type: 'warning',
-        timestamp: data.timestamp,
-        gigId: data.gigId,
-      }));
+      console.log('⚠️ bidRejected');
+      handleNotification(data, 'warning');
     });
 
     return () => {
@@ -84,10 +171,16 @@ export const SocketProvider = ({ children }) => {
         socketRef.current = null;
       }
     };
-  }, [user, dispatch]);
+  }, [user, isAuthenticated, dispatch]);
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected }}>
+    <SocketContext.Provider
+      value={{
+        socket: socketRef.current,
+        connected,
+        markAllAsRead, // 🔕 exposed to UI
+      }}
+    >
       {children}
     </SocketContext.Provider>
   );

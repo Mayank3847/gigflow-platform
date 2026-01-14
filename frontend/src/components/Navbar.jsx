@@ -5,13 +5,18 @@ import { sessionManager } from '../utils/sessionManager';
 import { Briefcase, LogOut, User, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import NotificationDropdown from './NotificationDropdown';
+import { useSocket } from '../context/SocketContext'; // ✅ ADDED
 
 const Navbar = () => {
   const { user } = useSelector((state) => state.auth);
+  const { notifications } = useSelector((state) => state.notifications); // ✅ LIVE COUNT
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { markAllAsRead } = useSocket(); // ✅ ADDED
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleLogout = () => {
     sessionManager.clearSession();
@@ -20,9 +25,7 @@ const Navbar = () => {
     setMobileMenuOpen(false);
   };
 
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
+  const isActive = (path) => location.pathname === path;
 
   const NavLink = ({ to, children, onClick }) => (
     <Link
@@ -43,20 +46,18 @@ const Navbar = () => {
       <div className="container mx-auto px-2 xxs:px-3 xs:px-4">
         <div className="flex items-center justify-between h-14 xs:h-16">
           {/* Logo */}
-          <Link 
-            to="/" 
-            className="flex items-center space-x-1 xs:space-x-2 hover:opacity-90 transition"
-          >
+          <Link to="/" className="flex items-center space-x-1 xs:space-x-2">
             <div className="bg-white p-1 xs:p-1.5 rounded-lg">
               <Briefcase size={18} className="text-blue-600 xs:w-6 xs:h-6" />
             </div>
-            <span className="text-base xs:text-xl sm:text-2xl font-bold hidden xxs:block">GigFlow</span>
+            <span className="text-base xs:text-xl sm:text-2xl font-bold hidden xxs:block">
+              GigFlow
+            </span>
           </Link>
 
-          {/* Desktop Navigation */}
           {user ? (
             <>
-              {/* Desktop Menu - Hidden on small screens */}
+              {/* Desktop Menu */}
               <div className="hidden xl:flex items-center space-x-1 2xl:space-x-2">
                 <NavLink to="/gigs">Browse Gigs</NavLink>
                 <NavLink to="/my-bids">My Bids</NavLink>
@@ -64,165 +65,107 @@ const Navbar = () => {
                 <NavLink to="/bid-history">History</NavLink>
               </div>
 
-              {/* Desktop Right Side - Adjusted for medium screens */}
+              {/* Desktop Right */}
               <div className="hidden xl:flex items-center space-x-2 2xl:space-x-4">
                 <Link
                   to="/post-gig"
-                  className="bg-white text-blue-600 px-3 2xl:px-5 py-2 rounded-lg hover:bg-blue-50 transition font-semibold shadow-md hover:shadow-lg text-xs 2xl:text-sm"
+                  className="bg-white text-blue-600 px-3 2xl:px-5 py-2 rounded-lg font-semibold shadow-md"
                 >
                   + Post Gig
                 </Link>
 
-                <NotificationDropdown />
+                {/* 🔔 NOTIFICATION DROPDOWN */}
+                <NotificationDropdown
+                  unreadCount={unreadCount}
+                  onMarkAllRead={markAllAsRead} // ✅ CONNECTED
+                />
 
-                <div className="flex items-center space-x-2 2xl:space-x-3 bg-blue-700 px-2 2xl:px-4 py-2 rounded-lg">
-                  <div className="bg-blue-500 p-1 2xl:p-1.5 rounded-full">
-                    <User size={14} className="2xl:w-[18px] 2xl:h-[18px]" />
-                  </div>
-                  <span className="font-medium text-xs 2xl:text-sm max-w-[100px] truncate">{user.name}</span>
+                <div className="flex items-center space-x-2 bg-blue-700 px-4 py-2 rounded-lg">
+                  <User size={14} />
+                  <span className="text-xs truncate max-w-[100px]">
+                    {user.name}
+                  </span>
                 </div>
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center space-x-1 2xl:space-x-2 bg-red-500 hover:bg-red-600 px-2 2xl:px-4 py-2 rounded-lg transition shadow-md hover:shadow-lg"
+                  className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg"
                 >
-                  <LogOut size={14} className="2xl:w-[18px] 2xl:h-[18px]" />
-                  <span className="text-xs 2xl:text-sm">Logout</span>
+                  <LogOut size={14} />
+                  <span className="text-xs">Logout</span>
                 </button>
               </div>
 
-              {/* Tablet/Mobile Right Side */}
-              <div className="xl:hidden flex items-center space-x-2 xs:space-x-3">
-                <NotificationDropdown />
-                
+              {/* Mobile Right */}
+              <div className="xl:hidden flex items-center space-x-2">
+                <NotificationDropdown
+                  unreadCount={unreadCount}
+                  onMarkAllRead={markAllAsRead}
+                />
                 <button
-                  className="p-1.5 xs:p-2 hover:bg-blue-700 rounded-lg transition"
+                  className="p-2 hover:bg-blue-700 rounded-lg"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 >
-                  {mobileMenuOpen ? <X size={20} className="xs:w-6 xs:h-6" /> : <Menu size={20} className="xs:w-6 xs:h-6" />}
+                  {mobileMenuOpen ? <X /> : <Menu />}
                 </button>
               </div>
             </>
           ) : (
             <>
-              {/* Not Logged In - Desktop */}
-              <div className="hidden md:flex items-center space-x-2 xs:space-x-4">
-                <Link 
-                  to="/gigs" 
-                  className="text-blue-100 hover:text-white transition text-xs xs:text-sm sm:text-base"
-                >
-                  Browse Gigs
-                </Link>
-                <Link
-                  to="/login"
-                  className="text-blue-100 hover:text-white transition px-2 xs:px-4 py-2 text-xs xs:text-sm sm:text-base"
-                >
-                  Login
-                </Link>
+              {/* Not Logged In */}
+              <div className="hidden md:flex items-center space-x-4">
+                <Link to="/gigs">Browse Gigs</Link>
+                <Link to="/login">Login</Link>
                 <Link
                   to="/register"
-                  className="bg-white text-blue-600 px-3 xs:px-6 py-2 rounded-lg hover:bg-blue-50 transition font-semibold shadow-md text-xs xs:text-sm sm:text-base"
+                  className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold"
                 >
                   Sign Up
                 </Link>
               </div>
-
-              {/* Not Logged In - Mobile */}
               <button
-                className="md:hidden p-1.5 xs:p-2 hover:bg-blue-700 rounded-lg transition"
+                className="md:hidden p-2"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
-                {mobileMenuOpen ? <X size={20} className="xs:w-6 xs:h-6" /> : <Menu size={20} className="xs:w-6 xs:h-6" />}
+                {mobileMenuOpen ? <X /> : <Menu />}
               </button>
             </>
           )}
         </div>
 
-        {/* Mobile Navigation Dropdown */}
+        {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="xl:hidden py-3 xs:py-4 space-y-2 border-t border-blue-500">
+          <div className="xl:hidden py-4 space-y-2 border-t border-blue-500">
             {user ? (
               <>
-                <div className="bg-blue-700 px-3 xs:px-4 py-2 xs:py-3 rounded-lg mb-3">
-                  <div className="flex items-center space-x-2">
-                    <User size={16} className="xs:w-5 xs:h-5" />
-                    <span className="font-medium text-xs xs:text-sm sm:text-base">{user.name}</span>
-                  </div>
-                </div>
-                <Link
-                  to="/gigs"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 xs:px-4 py-2 rounded-lg text-xs xs:text-sm sm:text-base ${
-                    isActive('/gigs') ? 'bg-blue-700' : 'hover:bg-blue-700'
-                  }`}
-                >
+                <NavLink to="/gigs" onClick={() => setMobileMenuOpen(false)}>
                   Browse Gigs
-                </Link>
-                <Link
-                  to="/my-bids"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 xs:px-4 py-2 rounded-lg text-xs xs:text-sm sm:text-base ${
-                    isActive('/my-bids') ? 'bg-blue-700' : 'hover:bg-blue-700'
-                  }`}
-                >
+                </NavLink>
+                <NavLink to="/my-bids" onClick={() => setMobileMenuOpen(false)}>
                   My Bids
-                </Link>
-                <Link
-                  to="/my-gigs"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 xs:px-4 py-2 rounded-lg text-xs xs:text-sm sm:text-base ${
-                    isActive('/my-gigs') ? 'bg-blue-700' : 'hover:bg-blue-700'
-                  }`}
-                >
-                  My Posted Gigs
-                </Link>
-                <Link
+                </NavLink>
+                <NavLink to="/my-gigs" onClick={() => setMobileMenuOpen(false)}>
+                  My Gigs
+                </NavLink>
+                <NavLink
                   to="/bid-history"
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 xs:px-4 py-2 rounded-lg text-xs xs:text-sm sm:text-base ${
-                    isActive('/bid-history') ? 'bg-blue-700' : 'hover:bg-blue-700'
-                  }`}
                 >
-                  Bid History
-                </Link>
-                <Link
-                  to="/post-gig"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block bg-white text-blue-600 px-3 xs:px-4 py-2 rounded-lg hover:bg-blue-50 transition font-semibold text-center text-xs xs:text-sm sm:text-base"
-                >
-                  + Post a Gig
-                </Link>
+                  History
+                </NavLink>
+                <NavLink to="/post-gig">+ Post a Gig</NavLink>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center justify-center space-x-2 bg-red-500 hover:bg-red-600 px-3 xs:px-4 py-2 rounded-lg transition mt-4 text-xs xs:text-sm sm:text-base"
+                  className="w-full bg-red-500 py-2 rounded-lg mt-2"
                 >
-                  <LogOut size={16} className="xs:w-[18px] xs:h-[18px]" />
-                  <span>Logout</span>
+                  Logout
                 </button>
               </>
             ) : (
               <>
-                <Link
-                  to="/gigs"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 xs:px-4 py-2 rounded-lg hover:bg-blue-700 text-xs xs:text-sm sm:text-base"
-                >
-                  Browse Gigs
-                </Link>
-                <Link
-                  to="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 xs:px-4 py-2 rounded-lg hover:bg-blue-700 text-xs xs:text-sm sm:text-base"
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/register"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block bg-white text-blue-600 px-3 xs:px-4 py-2 rounded-lg hover:bg-blue-50 transition font-semibold text-center text-xs xs:text-sm sm:text-base"
-                >
-                  Sign Up
-                </Link>
+                <NavLink to="/gigs">Browse Gigs</NavLink>
+                <NavLink to="/login">Login</NavLink>
+                <NavLink to="/register">Sign Up</NavLink>
               </>
             )}
           </div>

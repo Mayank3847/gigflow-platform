@@ -30,7 +30,7 @@ function AppContent() {
 
     if (isExistingSession) {
       console.log('🔄 Existing session - checking authentication');
-      dispatch(getMe());
+      dispatch(clearUser());
     }
   }, [dispatch]);
 
