@@ -1,11 +1,20 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-// Generate JWT Token with SHORT expiry for session-only
+// Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '12h' // Token expires in 12 hours
+    expiresIn: '12h'
   });
+};
+
+// Common cookie options (IMPORTANT)
+const cookieOptions = {
+  httpOnly: true,
+  secure: true,          // 🔴 REQUIRED for HTTPS (Render)
+  sameSite: 'None',      // 🔴 REQUIRED for cross-domain
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60 * 1000
 };
 
 // @route   POST /api/auth/register
@@ -34,18 +43,13 @@ exports.register = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // Clear any existing cookies first
-    res.clearCookie('token');
+    // Clear any existing cookie
+    res.clearCookie('token', cookieOptions);
 
-    // Set SESSION cookie (no maxAge, no expires)
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: false, // Set to false for localhost
-      sameSite: 'lax', // Changed from 'strict' to 'lax'
-      path: '/'
-    });
+    // ✅ Set cookie (FIXED)
+    res.cookie('token', token, cookieOptions);
 
-    console.log('✅ User registered, session cookie set');
+    console.log('✅ User registered, auth cookie set');
 
     res.status(201).json({
       _id: user._id,
@@ -54,14 +58,14 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     console.error('Register error:', error);
-    
+
     if (error.code === 11000) {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
-    
-    res.status(500).json({ 
-      message: 'Server error during registration', 
-      error: error.message 
+
+    res.status(500).json({
+      message: 'Server error during registration',
+      error: error.message
     });
   }
 };
@@ -87,19 +91,13 @@ exports.login = async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // Clear any existing cookies first
-    res.clearCookie('token');
+    // Clear old cookie
+    res.clearCookie('token', cookieOptions);
 
-    // Set SESSION cookie (no maxAge, no expires)
-    res.cookie('token', token, {
-      httpOnly: true,
-  secure: true,        // REQUIRED (Netlify + Render = HTTPS)
-  sameSite: "None",    // REQUIRED for cross-domain
-  maxAge: 7 * 24 * 60 * 60 * 1000,// Changed from 'strict' to 'lax'
-      path: '/'
-    });
+    // ✅ Set cookie (FIXED)
+    res.cookie('token', token, cookieOptions);
 
-    console.log('✅ User logged in, session cookie set');
+    console.log('✅ User logged in, auth cookie set');
 
     res.json({
       _id: user._id,
@@ -108,22 +106,20 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login', error: error.message });
+    res.status(500).json({
+      message: 'Server error during login',
+      error: error.message
+    });
   }
 };
 
 // @route   POST /api/auth/logout
 exports.logout = (req, res) => {
-  // Clear the cookie
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: false,
-    sameSite: 'lax',
-    path: '/'
-  });
-  
+  // ✅ Clear cookie with SAME options
+  res.clearCookie('token', cookieOptions);
+
   console.log('✅ User logged out, cookie cleared');
-  
+
   res.json({ message: 'Logged out successfully' });
 };
 
