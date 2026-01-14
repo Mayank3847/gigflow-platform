@@ -1,6 +1,6 @@
 // src/redux/slices/gigSlice.js - Complete Gig Management Slice
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from './authSlice'; // Import configured axios instance
+import { api } from './authSlice'; // ✅ shared authenticated axios instance
 
 // ============================================
 // Async Thunks for Gig Operations
@@ -14,20 +14,24 @@ export const getAllGigs = createAsyncThunk(
   async ({ search = '' } = {}, { rejectWithValue }) => {
     try {
       console.log('📥 Fetching all gigs...');
-      
-      const url = search 
+
+      const url = search
         ? `/api/gigs?search=${encodeURIComponent(search)}`
         : '/api/gigs';
-      
+
       const response = await api.get(url);
-      
-      console.log('✅ Gigs fetched successfully:', response.data.length || 0, 'gigs');
+
+      console.log(
+        '✅ Gigs fetched successfully:',
+        Array.isArray(response.data) ? response.data.length : 0,
+        'gigs'
+      );
+
       return response.data;
     } catch (error) {
       console.error('❌ Failed to fetch gigs:', error.response?.data);
       return rejectWithValue(
-        error.response?.data?.message || 
-        'Failed to load gigs'
+        error.response?.data?.message || 'Failed to load gigs'
       );
     }
   }
@@ -41,16 +45,21 @@ export const getMyGigs = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       console.log('📥 Fetching my gigs...');
-      
+
+      // ✅ SINGLE CANONICAL ROUTE (backend supports both, but UI uses one)
       const response = await api.get('/api/gigs/my-gigs');
-      
-      console.log('✅ My gigs fetched successfully:', response.data.length || 0, 'gigs');
+
+      console.log(
+        '✅ My gigs fetched successfully:',
+        Array.isArray(response.data) ? response.data.length : 0,
+        'gigs'
+      );
+
       return response.data;
     } catch (error) {
       console.error('❌ Failed to fetch my gigs:', error.response?.data);
       return rejectWithValue(
-        error.response?.data?.message || 
-        'Failed to load your gigs'
+        error.response?.data?.message || 'Failed to load your gigs'
       );
     }
   }
@@ -64,16 +73,15 @@ export const getGigById = createAsyncThunk(
   async (gigId, { rejectWithValue }) => {
     try {
       console.log('📥 Fetching gig:', gigId);
-      
+
       const response = await api.get(`/api/gigs/${gigId}`);
-      
-      console.log('✅ Gig fetched successfully:', response.data.title);
+
+      console.log('✅ Gig fetched successfully:', response.data?.title);
       return response.data;
     } catch (error) {
       console.error('❌ Failed to fetch gig:', error.response?.data);
       return rejectWithValue(
-        error.response?.data?.message || 
-        'Failed to load gig details'
+        error.response?.data?.message || 'Failed to load gig details'
       );
     }
   }
@@ -87,20 +95,20 @@ export const createGig = createAsyncThunk(
   async (gigData, { rejectWithValue }) => {
     try {
       console.log('📝 Creating new gig:', gigData.title);
-      
+
       const response = await api.post('/api/gigs', {
         title: gigData.title?.trim(),
         description: gigData.description?.trim(),
         budget: parseFloat(gigData.budget),
       });
-      
+
       console.log('✅ Gig created successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ Failed to create gig:', error.response?.data);
       return rejectWithValue(
-        error.response?.data?.message || 
-        'Failed to create gig. Please try again.'
+        error.response?.data?.message ||
+          'Failed to create gig. Please try again.'
       );
     }
   }
@@ -108,26 +116,26 @@ export const createGig = createAsyncThunk(
 
 /**
  * Update existing gig (requires auth + ownership)
+ * ⚠️ Backend route may or may not exist — kept for future use (NO REMOVAL)
  */
 export const updateGig = createAsyncThunk(
   'gigs/update',
   async ({ gigId, gigData }, { rejectWithValue }) => {
     try {
       console.log('🔄 Updating gig:', gigId);
-      
+
       const response = await api.put(`/api/gigs/${gigId}`, {
         title: gigData.title?.trim(),
         description: gigData.description?.trim(),
         budget: parseFloat(gigData.budget),
       });
-      
+
       console.log('✅ Gig updated successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ Failed to update gig:', error.response?.data);
       return rejectWithValue(
-        error.response?.data?.message || 
-        'Failed to update gig'
+        error.response?.data?.message || 'Failed to update gig'
       );
     }
   }
@@ -135,22 +143,22 @@ export const updateGig = createAsyncThunk(
 
 /**
  * Delete gig (requires auth + ownership)
+ * ⚠️ Backend route may or may not exist — kept intentionally
  */
 export const deleteGig = createAsyncThunk(
   'gigs/delete',
   async (gigId, { rejectWithValue }) => {
     try {
       console.log('🗑️ Deleting gig:', gigId);
-      
+
       await api.delete(`/api/gigs/${gigId}`);
-      
+
       console.log('✅ Gig deleted successfully');
       return gigId;
     } catch (error) {
       console.error('❌ Failed to delete gig:', error.response?.data);
       return rejectWithValue(
-        error.response?.data?.message || 
-        'Failed to delete gig'
+        error.response?.data?.message || 'Failed to delete gig'
       );
     }
   }
@@ -159,6 +167,7 @@ export const deleteGig = createAsyncThunk(
 // ============================================
 // Gig Slice
 // ============================================
+
 const gigSlice = createSlice({
   name: 'gigs',
   initialState: {
@@ -173,7 +182,7 @@ const gigSlice = createSlice({
   },
   reducers: {
     /**
-     * Reset state flags
+     * Reset async flags
      */
     reset: (state) => {
       state.isLoading = false;
@@ -181,9 +190,9 @@ const gigSlice = createSlice({
       state.isSuccess = false;
       state.message = '';
     },
-    
+
     /**
-     * Clear all gigs
+     * Clear all gig-related state
      */
     clearGigs: (state) => {
       state.gigs = [];
@@ -194,16 +203,16 @@ const gigSlice = createSlice({
       state.isSuccess = false;
       state.message = '';
     },
-    
+
     /**
-     * Set search query
+     * Store search query
      */
     setSearchQuery: (state, action) => {
       state.searchQuery = action.payload;
     },
-    
+
     /**
-     * Clear current gig
+     * Clear selected gig
      */
     clearCurrentGig: (state) => {
       state.currentGig = null;
@@ -211,9 +220,9 @@ const gigSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // ============================================
+      // ===============================
       // GET ALL GIGS
-      // ============================================
+      // ===============================
       .addCase(getAllGigs.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
@@ -230,10 +239,10 @@ const gigSlice = createSlice({
         state.message = action.payload;
         state.gigs = [];
       })
-      
-      // ============================================
+
+      // ===============================
       // GET MY GIGS
-      // ============================================
+      // ===============================
       .addCase(getMyGigs.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
@@ -250,10 +259,10 @@ const gigSlice = createSlice({
         state.message = action.payload;
         state.myGigs = [];
       })
-      
-      // ============================================
+
+      // ===============================
       // GET GIG BY ID
-      // ============================================
+      // ===============================
       .addCase(getGigById.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
@@ -270,10 +279,10 @@ const gigSlice = createSlice({
         state.message = action.payload;
         state.currentGig = null;
       })
-      
-      // ============================================
+
+      // ===============================
       // CREATE GIG
-      // ============================================
+      // ===============================
       .addCase(createGig.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
@@ -283,7 +292,7 @@ const gigSlice = createSlice({
       .addCase(createGig.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.gigs.unshift(action.payload); // Add to beginning
+        state.gigs.unshift(action.payload);
         state.myGigs.unshift(action.payload);
         state.message = 'Gig created successfully!';
       })
@@ -293,74 +302,44 @@ const gigSlice = createSlice({
         state.isSuccess = false;
         state.message = action.payload;
       })
-      
-      // ============================================
+
+      // ===============================
       // UPDATE GIG
-      // ============================================
-      .addCase(updateGig.pending, (state) => {
-        state.isLoading = true;
-        state.isError = false;
-        state.isSuccess = false;
-        state.message = '';
-      })
+      // ===============================
       .addCase(updateGig.fulfilled, (state, action) => {
-        state.isLoading = false;
-        state.isSuccess = true;
-        
-        // Update in all gigs
-        const gigIndex = state.gigs.findIndex(g => g._id === action.payload._id);
-        if (gigIndex !== -1) {
-          state.gigs[gigIndex] = action.payload;
+        const update = action.payload;
+
+        const gIdx = state.gigs.findIndex(g => g._id === update._id);
+        if (gIdx !== -1) state.gigs[gIdx] = update;
+
+        const mIdx = state.myGigs.findIndex(g => g._id === update._id);
+        if (mIdx !== -1) state.myGigs[mIdx] = update;
+
+        if (state.currentGig?._id === update._id) {
+          state.currentGig = update;
         }
-        
-        // Update in my gigs
-        const myGigIndex = state.myGigs.findIndex(g => g._id === action.payload._id);
-        if (myGigIndex !== -1) {
-          state.myGigs[myGigIndex] = action.payload;
-        }
-        
-        // Update current gig
-        if (state.currentGig?._id === action.payload._id) {
-          state.currentGig = action.payload;
-        }
-        
+
         state.message = 'Gig updated successfully!';
-      })
-      .addCase(updateGig.rejected, (state, action) => {
-        state.isLoading = false;
-        state.isError = true;
-        state.message = action.payload;
-      })
-      
-      // ============================================
-      // DELETE GIG
-      // ============================================
-      .addCase(deleteGig.pending, (state) => {
-        state.isLoading = true;
-        state.isError = false;
-        state.message = '';
-      })
-      .addCase(deleteGig.fulfilled, (state, action) => {
-        state.isLoading = false;
         state.isSuccess = true;
-        
-        // Remove from all gigs
-        state.gigs = state.gigs.filter(g => g._id !== action.payload);
-        
-        // Remove from my gigs
-        state.myGigs = state.myGigs.filter(g => g._id !== action.payload);
-        
-        // Clear current gig if it was deleted
-        if (state.currentGig?._id === action.payload) {
+        state.isLoading = false;
+      })
+
+      // ===============================
+      // DELETE GIG
+      // ===============================
+      .addCase(deleteGig.fulfilled, (state, action) => {
+        const id = action.payload;
+
+        state.gigs = state.gigs.filter(g => g._id !== id);
+        state.myGigs = state.myGigs.filter(g => g._id !== id);
+
+        if (state.currentGig?._id === id) {
           state.currentGig = null;
         }
-        
+
         state.message = 'Gig deleted successfully!';
-      })
-      .addCase(deleteGig.rejected, (state, action) => {
+        state.isSuccess = true;
         state.isLoading = false;
-        state.isError = true;
-        state.message = action.payload;
       });
   },
 });
@@ -368,5 +347,11 @@ const gigSlice = createSlice({
 // ============================================
 // Export actions and reducer
 // ============================================
-export const { reset, clearGigs, setSearchQuery, clearCurrentGig } = gigSlice.actions;
+export const {
+  reset,
+  clearGigs,
+  setSearchQuery,
+  clearCurrentGig,
+} = gigSlice.actions;
+
 export default gigSlice.reducer;

@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getMe, clearUser } from './store/slices/authSlice';
+import { getMe } from './store/slices/authSlice';
 import { SocketProvider } from './context/SocketContext';
-import { ToastProvider } from './context/ToastContext';  // NEW
+import { ToastProvider } from './context/ToastContext';
 import { sessionManager } from './utils/sessionManager';
 
 import Navbar from './components/Navbar';
@@ -24,13 +24,11 @@ function AppContent() {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
 
+  // ✅ FIX: Do NOT force logout on refresh
   useEffect(() => {
     const isExistingSession = sessionManager.initSession();
-    
-    if (!isExistingSession) {
-      console.log('🚪 New browser session - forcing logout');
-      dispatch(clearUser());
-    } else {
+
+    if (isExistingSession) {
       console.log('🔄 Existing session - checking authentication');
       dispatch(getMe());
     }
@@ -47,16 +45,18 @@ function AppContent() {
 
   return (
     <SocketProvider>
-      <ToastProvider>  {/* NEW */}
+      <ToastProvider>
         <div className="min-h-screen bg-gray-50">
           <Navbar />
           <NotificationToast />
+
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
             <Route path="/gigs" element={<GigList />} />
             <Route path="/gigs/:id" element={<GigDetail />} />
+
             <Route
               path="/post-gig"
               element={
@@ -65,6 +65,7 @@ function AppContent() {
                 </PrivateRoute>
               }
             />
+
             <Route
               path="/my-gigs"
               element={
@@ -73,6 +74,7 @@ function AppContent() {
                 </PrivateRoute>
               }
             />
+
             <Route
               path="/my-bids"
               element={
@@ -81,6 +83,7 @@ function AppContent() {
                 </PrivateRoute>
               }
             />
+
             <Route
               path="/bid-history"
               element={
@@ -91,7 +94,7 @@ function AppContent() {
             />
           </Routes>
         </div>
-      </ToastProvider>  {/* NEW */}
+      </ToastProvider>
     </SocketProvider>
   );
 }
