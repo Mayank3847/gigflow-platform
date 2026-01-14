@@ -117,5 +117,5 @@ VITE_API_URL=https://gigflow-backend-qfln.onrender.com
 Mayank Shekhar
 Email: mayankshekhar0303@gmail.com
 LinkedIn:https://www.linkedin.com/in/mayank-shekhar-44a81328a/
-GitHub:https://github.com/Mayank3847
+GitHub:https://github.com/Mayank3847                   
 Contact:7295059168
