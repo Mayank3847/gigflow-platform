@@ -6,17 +6,19 @@ exports.protect = async (req, res, next) => {
     let token;
 
     /**
-     * 1️⃣ PRIMARY: Read token from cookies (your original logic)
+     * 1️⃣ PRIMARY: Read token from cookies (MAIN AUTH METHOD)
+     * This is REQUIRED for Netlify → Render auth
      */
     if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
     }
 
     /**
-     * 2️⃣ OPTIONAL FALLBACK (does NOT remove cookie auth)
-     * Allows Authorization header if cookies fail in production
+     * 2️⃣ OPTIONAL FALLBACK (kept exactly as requested)
+     * Allows Authorization header if cookies are not present
+     * Does NOT remove cookie-based auth
      */
-    if (!token && req.headers.authorization?.startsWith('Bearer')) {
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
 
@@ -36,7 +38,7 @@ exports.protect = async (req, res, next) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
-      console.error('JWT verification failed:', err.message);
+      console.error('❌ JWT verification failed:', err.message);
       return res.status(401).json({
         message: 'Not authorized, token invalid or expired'
       });
@@ -63,11 +65,11 @@ exports.protect = async (req, res, next) => {
     }
 
     /**
-     * 7️⃣ Success
+     * 7️⃣ SUCCESS — user authenticated
      */
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    console.error('❌ Auth middleware error:', error);
     return res.status(401).json({
       message: 'Not authorized, token failed'
     });
