@@ -13,9 +13,15 @@ export const store = configureStore({
   },
 });
 
-// Clear state when window/tab is closed
-window.addEventListener('beforeunload', () => {
-  // This will trigger the state to reset
-  sessionStorage.clear();
-  localStorage.clear();
-});
+/**
+ * ❌ REMOVED:
+ * window.beforeunload clearing storage
+ *
+ * WHY:
+ * - Breaks auth persistence
+ * - Breaks cookies
+ * - Breaks sockets
+ * - Causes random 401s
+ *
+ * Session lifecycle MUST be controlled by sessionManager only
+ */

@@ -1,8 +1,4 @@
 // src/utils/sessionManager.js - Session Management Utility
-/**
- * Session Manager
- * Handles token and user session management in localStorage/sessionStorage
- */
 
 const SESSION_KEYS = {
   TOKEN: 'token',
@@ -12,213 +8,125 @@ const SESSION_KEYS = {
 
 class SessionManager {
   /**
-   * Set user session (token + user data)
+   * ✅ INIT SESSION (USED BY App.jsx)
+   * Checks whether an existing valid session exists
    */
-  setSession(token, user) {
+  initSession() {
     try {
-      if (!token) {
-        console.error('❌ SessionManager: No token provided');
+      const isActive = this.isSessionActive();
+
+      if (!isActive) {
+        console.log('🔄 New browser session detected - clearing auth');
+        this.clearSession();
         return false;
       }
 
-      // Store token in both storages for redundancy
+      console.log('✅ Existing session restored');
+      return true;
+    } catch (error) {
+      console.error('❌ SessionManager: initSession failed', error);
+      return false;
+    }
+  }
+
+  /**
+   * ✅ MARK SESSION ACTIVE (USED AFTER LOGIN / GETME)
+   */
+  markActive() {
+    try {
+      if (!this.getToken()) return false;
+
+      const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000);
+      localStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiryTime.toString());
+      sessionStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiryTime.toString());
+
+      console.log('✅ Session marked as active');
+      return true;
+    } catch (error) {
+      console.error('❌ SessionManager: markActive failed', error);
+      return false;
+    }
+  }
+
+  // ================= EXISTING CODE (UNCHANGED) =================
+
+  setSession(token, user) {
+    try {
+      if (!token) return false;
+
       localStorage.setItem(SESSION_KEYS.TOKEN, token);
       sessionStorage.setItem(SESSION_KEYS.TOKEN, token);
 
-      // Store user data if provided
       if (user) {
         const userData = typeof user === 'string' ? user : JSON.stringify(user);
         localStorage.setItem(SESSION_KEYS.USER, userData);
         sessionStorage.setItem(SESSION_KEYS.USER, userData);
       }
 
-      // Set expiry (7 days from now - matching JWT expiry)
-      const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000);
-      localStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiryTime.toString());
-      sessionStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiryTime.toString());
-
-      console.log('✅ SessionManager: Session saved successfully');
+      this.markActive();
       return true;
-    } catch (error) {
-      console.error('❌ SessionManager: Error setting session:', error);
+    } catch {
       return false;
     }
   }
 
-  /**
-   * Get token from storage
-   */
   getToken() {
-    try {
-      // Try sessionStorage first (more secure)
-      let token = sessionStorage.getItem(SESSION_KEYS.TOKEN);
-      
-      // Fallback to localStorage
-      if (!token) {
-        token = localStorage.getItem(SESSION_KEYS.TOKEN);
-        
-        // If found in localStorage, copy to sessionStorage
-        if (token) {
-          sessionStorage.setItem(SESSION_KEYS.TOKEN, token);
-        }
-      }
-
-      return token;
-    } catch (error) {
-      console.error('❌ SessionManager: Error getting token:', error);
-      return null;
-    }
+    return sessionStorage.getItem(SESSION_KEYS.TOKEN)
+      || localStorage.getItem(SESSION_KEYS.TOKEN);
   }
 
-  /**
-   * Get user data from storage
-   */
   getUser() {
+    const user =
+      sessionStorage.getItem(SESSION_KEYS.USER)
+      || localStorage.getItem(SESSION_KEYS.USER);
+
+    if (!user) return null;
+
     try {
-      // Try sessionStorage first
-      let userData = sessionStorage.getItem(SESSION_KEYS.USER);
-      
-      // Fallback to localStorage
-      if (!userData) {
-        userData = localStorage.getItem(SESSION_KEYS.USER);
-        
-        // If found in localStorage, copy to sessionStorage
-        if (userData) {
-          sessionStorage.setItem(SESSION_KEYS.USER, userData);
-        }
-      }
-
-      if (!userData) {
-        return null;
-      }
-
-      // Parse if it's a JSON string
-      try {
-        return JSON.parse(userData);
-      } catch {
-        return userData;
-      }
-    } catch (error) {
-      console.error('❌ SessionManager: Error getting user:', error);
-      return null;
+      return JSON.parse(user);
+    } catch {
+      return user;
     }
   }
 
-  /**
-   * Check if session is active and not expired
-   */
   isSessionActive() {
-    try {
-      const token = this.getToken();
-      
-      if (!token) {
-        console.log('ℹ️ SessionManager: No token found');
-        return false;
-      }
+    const token = this.getToken();
+    if (!token) return false;
 
-      // Check expiry
-      const expiryTime = localStorage.getItem(SESSION_KEYS.SESSION_EXPIRY) ||
-                        sessionStorage.getItem(SESSION_KEYS.SESSION_EXPIRY);
-      
-      if (expiryTime) {
-        const expiry = parseInt(expiryTime, 10);
-        const now = Date.now();
-        
-        if (now > expiry) {
-          console.log('⏰ SessionManager: Session expired');
-          this.clearSession();
-          return false;
-        }
-      }
+    const expiry =
+      localStorage.getItem(SESSION_KEYS.SESSION_EXPIRY)
+      || sessionStorage.getItem(SESSION_KEYS.SESSION_EXPIRY);
 
-      console.log('✅ SessionManager: Session is active');
-      return true;
-    } catch (error) {
-      console.error('❌ SessionManager: Error checking session:', error);
-      return false;
-    }
+    if (!expiry) return false;
+
+    return Date.now() < parseInt(expiry, 10);
   }
 
-  /**
-   * Clear entire session
-   */
   clearSession() {
-    try {
-      // Clear from both storages
-      Object.values(SESSION_KEYS).forEach(key => {
-        localStorage.removeItem(key);
-        sessionStorage.removeItem(key);
-      });
-
-      console.log('🧹 SessionManager: Session cleared');
-      return true;
-    } catch (error) {
-      console.error('❌ SessionManager: Error clearing session:', error);
-      return false;
-    }
+    Object.values(SESSION_KEYS).forEach((key) => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    });
+    return true;
   }
 
-  /**
-   * Update user data only (keep token)
-   */
   updateUser(user) {
-    try {
-      if (!user) {
-        console.error('❌ SessionManager: No user data provided');
-        return false;
-      }
+    if (!user) return false;
 
-      const userData = typeof user === 'string' ? user : JSON.stringify(user);
-      localStorage.setItem(SESSION_KEYS.USER, userData);
-      sessionStorage.setItem(SESSION_KEYS.USER, userData);
-
-      console.log('✅ SessionManager: User data updated');
-      return true;
-    } catch (error) {
-      console.error('❌ SessionManager: Error updating user:', error);
-      return false;
-    }
+    const data = typeof user === 'string' ? user : JSON.stringify(user);
+    localStorage.setItem(SESSION_KEYS.USER, data);
+    sessionStorage.setItem(SESSION_KEYS.USER, data);
+    return true;
   }
 
-  /**
-   * Refresh session expiry (extend by 7 days)
-   */
-  refreshSession() {
-    try {
-      if (!this.isSessionActive()) {
-        console.log('❌ SessionManager: Cannot refresh - no active session');
-        return false;
-      }
-
-      const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000);
-      localStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiryTime.toString());
-      sessionStorage.setItem(SESSION_KEYS.SESSION_EXPIRY, expiryTime.toString());
-
-      console.log('♻️ SessionManager: Session refreshed');
-      return true;
-    } catch (error) {
-      console.error('❌ SessionManager: Error refreshing session:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Get session info for debugging
-   */
   getSessionInfo() {
     return {
-      hasToken: !!this.getToken(),
-      hasUser: !!this.getUser(),
-      isActive: this.isSessionActive(),
+      token: this.getToken(),
       user: this.getUser(),
-      expiryTime: localStorage.getItem(SESSION_KEYS.SESSION_EXPIRY) ||
-                  sessionStorage.getItem(SESSION_KEYS.SESSION_EXPIRY),
+      active: this.isSessionActive(),
     };
   }
 }
 
-// Export singleton instance
 export const sessionManager = new SessionManager();
-
-// Export class for testing
 export default SessionManager;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchGigs } from '../store/slices/gigSlice';
+import { getAllGigs } from '../store/slices/gigSlice'; // ✅ FIXED
 import { Link } from 'react-router-dom';
 import { Search, DollarSign, Calendar, Filter } from 'lucide-react';
 
@@ -11,12 +11,14 @@ const GigList = () => {
   const { gigs, isLoading } = useSelector((state) => state.gigs);
 
   useEffect(() => {
-    dispatch(fetchGigs());
+    // ✅ FIXED: correct thunk
+    dispatch(getAllGigs());
   }, [dispatch]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    dispatch(fetchGigs(searchTerm));
+    // ✅ FIXED: thunk expects an object
+    dispatch(getAllGigs({ search: searchTerm }));
   };
 
   const formatDate = (date) => {
@@ -34,7 +36,9 @@ const GigList = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-4 xs:py-6 sm:py-8">
       <div className="container mx-auto px-3 xs:px-4">
-        <h1 className="text-2xl xs:text-3xl sm:text-4xl font-bold mb-4 xs:mb-6 sm:mb-8 text-center">Browse Gigs</h1>
+        <h1 className="text-2xl xs:text-3xl sm:text-4xl font-bold mb-4 xs:mb-6 sm:mb-8 text-center">
+          Browse Gigs
+        </h1>
 
         {/* Search Bar */}
         <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-4 xs:mb-6">
@@ -62,7 +66,9 @@ const GigList = () => {
         <div className="max-w-2xl mx-auto mb-4 xs:mb-6 sm:mb-8 flex flex-col xs:flex-row items-start xs:items-center justify-between bg-white rounded-lg shadow-sm p-3 xs:p-4 gap-2 xs:gap-0">
           <div className="flex items-center space-x-2">
             <Filter className="text-gray-600 w-4 h-4 xs:w-5 xs:h-5" />
-            <span className="text-gray-700 font-medium text-xs xs:text-sm sm:text-base">Show only open gigs</span>
+            <span className="text-gray-700 font-medium text-xs xs:text-sm sm:text-base">
+              Show only open gigs
+            </span>
           </div>
           <button
             onClick={() => setShowOnlyOpen(!showOnlyOpen)}
@@ -112,7 +118,9 @@ const GigList = () => {
               <div
                 key={gig._id}
                 className={`bg-white rounded-lg shadow-md p-4 xs:p-5 sm:p-6 hover:shadow-lg transition ${
-                  gig.status === 'assigned' ? 'opacity-75 border-2 border-gray-300' : ''
+                  gig.status === 'assigned'
+                    ? 'opacity-75 border-2 border-gray-300'
+                    : ''
                 }`}
               >
                 <div className="flex items-start justify-between mb-3">
@@ -143,12 +151,15 @@ const GigList = () => {
                   </div>
                   <div className="flex items-center space-x-1">
                     <Calendar className="w-3 h-3 xs:w-4 xs:h-4" />
-                    <span className="text-[10px] xs:text-xs">{formatDate(gig.createdAt)}</span>
+                    <span className="text-[10px] xs:text-xs">
+                      {formatDate(gig.createdAt)}
+                    </span>
                   </div>
                 </div>
 
                 <div className="mb-3 xs:mb-4 text-xs xs:text-sm text-gray-600">
-                  Posted by: <span className="font-semibold">{gig.ownerId?.name}</span>
+                  Posted by:{' '}
+                  <span className="font-semibold">{gig.ownerId?.name}</span>
                 </div>
 
                 {gig.status === 'open' ? (
