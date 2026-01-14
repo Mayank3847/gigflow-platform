@@ -20,7 +20,7 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
   process.env.CLIENT_URL,        // Netlify
   'http://localhost:5173'        // Local dev
-];
+].filter(Boolean); // Remove undefined values
 
 // =======================
 // Socket.io setup
@@ -37,10 +37,10 @@ const io = new Server(server, {
 // GLOBAL MIDDLEWARE
 // =======================
 
-// ✅ CORRECT CORS (THIS FIXES YOUR ISSUE)
-app.use(cors({
+// ✅ CORRECT CORS SETUP (handles preflight automatically)
+const corsOptions = {
   origin: function (origin, callback) {
-    // allow non-browser clients (Postman, server-to-server)
+    // Allow non-browser clients (Postman, server-to-server, mobile apps)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
@@ -50,12 +50,18 @@ app.use(cors({
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['set-cookie']
+};
 
-// Handle preflight explicitly (important)
-app.options('*', cors());
+app.use(cors(corsOptions));
+
+// ❌ REMOVE THIS LINE - It causes the error with Node 22
+// app.options('*', cors());
+
+// The cors() middleware above already handles OPTIONS requests
+// No need for explicit app.options() call
 
 // Body parser
 app.use(express.json());
@@ -157,7 +163,8 @@ app.use('/api/bids', require('./routes/bids'));
 app.use((req, res) => {
   res.status(404).json({
     message: 'Route not found',
-    requestedPath: req.originalUrl
+    requestedPath: req.originalUrl,
+    method: req.method
   });
 });
 
@@ -166,6 +173,15 @@ app.use((req, res) => {
 // =======================
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.message);
+  
+  // Handle CORS errors specifically
+  if (err.message && err.message.includes('CORS blocked')) {
+    return res.status(403).json({
+      message: 'CORS policy violation',
+      error: err.message
+    });
+  }
+  
   res.status(err.status || 500).json({
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'production'
@@ -182,4 +198,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔌 Socket.io ready for connections`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ Allowed origins:`, allowedOrigins);
 });
