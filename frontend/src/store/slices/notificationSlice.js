@@ -1,45 +1,44 @@
+// frontend/src/store/slices/notificationSlice.js
 import { createSlice } from '@reduxjs/toolkit';
+
+const initialState = {
+  notifications: [],
+};
 
 const notificationSlice = createSlice({
   name: 'notifications',
-  initialState: {
-    notifications: [], // Stored notifications (for bell dropdown)
-    toasts: [], // Temporary toast notifications
-  },
+  initialState,
   reducers: {
+    // ➕ ADD single notification
     addNotification: (state, action) => {
-      // Add to stored notifications
       state.notifications.unshift(action.payload);
-      // Also add to toasts for temporary display
-      state.toasts.unshift(action.payload);
     },
-    removeNotification: (state, action) => {
-      // Remove from stored notifications
-      state.notifications = state.notifications.filter(
-        (notif) => notif.id !== action.payload
-      );
+
+    // ✅ REQUIRED — restore notifications from localStorage
+    setNotifications: (state, action) => {
+      state.notifications = action.payload || [];
     },
-    removeToast: (state, action) => {
-      // Remove from toasts only
-      state.toasts = state.toasts.filter(
-        (notif) => notif.id !== action.payload
-      );
-    },
+
+    // 🧹 Clear all (used on logout)
     clearNotifications: (state) => {
       state.notifications = [];
     },
-    clearToasts: (state) => {
-      state.toasts = [];
+
+    // 🔕 Mark all as read (optional UX)
+    markAllAsRead: (state) => {
+      state.notifications = state.notifications.map((n) => ({
+        ...n,
+        read: true,
+      }));
     },
   },
 });
 
-export const { 
-  addNotification, 
-  removeNotification, 
-  removeToast,
+export const {
+  addNotification,
+  setNotifications,     // 🔥 THIS FIXES NETLIFY BUILD
   clearNotifications,
-  clearToasts 
+  markAllAsRead,
 } = notificationSlice.actions;
 
 export default notificationSlice.reducer;
