@@ -1,18 +1,16 @@
 const Gig = require('../models/Gig');
 
-// @route   GET /api/gigs
+/**
+ * @route   GET /api/gigs
+ * @desc    Get all gigs (public)
+ */
 exports.getGigs = async (req, res) => {
   try {
     const { search } = req.query;
-    let query = {};
 
-    // Search functionality
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
-      ];
-    }
+    const query = search
+      ? { $text: { $search: search } }
+      : {};
 
     const gigs = await Gig.find(query)
       .populate('ownerId', 'name email')
@@ -20,35 +18,42 @@ exports.getGigs = async (req, res) => {
 
     res.json(gigs);
   } catch (error) {
-    console.error('Get gigs error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Get gigs error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// @route   GET /api/gigs/:id
+/**
+ * @route   GET /api/gigs/:id
+ * @desc    Get gig by ID
+ */
 exports.getGigById = async (req, res) => {
   try {
-    const gig = await Gig.findById(req.params.id).populate('ownerId', 'name email');
-    
+    const gig = await Gig.findById(req.params.id)
+      .populate('ownerId', 'name email');
+
     if (!gig) {
       return res.status(404).json({ message: 'Gig not found' });
     }
 
     res.json(gig);
   } catch (error) {
-    console.error('Get gig error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Get gig error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// @route   POST /api/gigs
+/**
+ * @route   POST /api/gigs
+ * @desc    Create gig
+ * @access  Private
+ */
 exports.createGig = async (req, res) => {
   try {
     const { title, description, budget } = req.body;
 
-    // Validation
     if (!title || !description || !budget) {
-      return res.status(400).json({ message: 'Please provide all fields' });
+      return res.status(400).json({ message: 'All fields are required' });
     }
 
     const gig = await Gig.create({
@@ -58,16 +63,21 @@ exports.createGig = async (req, res) => {
       ownerId: req.user._id
     });
 
-    const populatedGig = await Gig.findById(gig._id).populate('ownerId', 'name email');
+    const populatedGig = await Gig.findById(gig._id)
+      .populate('ownerId', 'name email');
 
     res.status(201).json(populatedGig);
   } catch (error) {
-    console.error('Create gig error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Create gig error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// @route   GET /api/gigs/my/posted
+/**
+ * @route   GET /api/gigs/my-gigs
+ * @desc    Get gigs created by logged-in user
+ * @access  Private
+ */
 exports.getMyGigs = async (req, res) => {
   try {
     const gigs = await Gig.find({ ownerId: req.user._id })
@@ -76,7 +86,7 @@ exports.getMyGigs = async (req, res) => {
 
     res.json(gigs);
   } catch (error) {
-    console.error('Get my gigs error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('❌ Get my gigs error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
