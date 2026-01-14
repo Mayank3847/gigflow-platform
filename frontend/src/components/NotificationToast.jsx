@@ -4,7 +4,7 @@ import { removeToast } from '../store/slices/notificationSlice';
 import { CheckCircle, X, AlertCircle, Briefcase } from 'lucide-react';
 
 const NotificationToast = () => {
-  const { toasts } = useSelector((state) => state.notifications);
+  const { toasts } = useSelector((state) => state.notifications?.notifications) || [];
   const dispatch = useDispatch();
 
   useEffect(() => {

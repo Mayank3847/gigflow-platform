@@ -9,7 +9,8 @@ import { useSocket } from '../context/SocketContext'; // ✅ ADDED
 
 const Navbar = () => {
   const { user } = useSelector((state) => state.auth);
-  const { notifications } = useSelector((state) => state.notifications); // ✅ LIVE COUNT
+  const notifications =
+  useSelector((state) => state.notifications?.notifications) || [];
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
