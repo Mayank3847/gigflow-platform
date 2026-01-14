@@ -11,7 +11,12 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// Socket.io setup with proper CORS
+// ✅ Trust proxy (REQUIRED for secure cookies on Render)
+app.set('trust proxy', 1);
+
+// =======================
+// Socket.io setup
+// =======================
 const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -20,24 +25,35 @@ const io = new Server(server, {
   }
 });
 
-// Middleware
+// =======================
+// GLOBAL MIDDLEWARE
+// =======================
+
+// ✅ CORS — hardened, production-safe
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// ✅ Body parser
 app.use(express.json());
+
+// ✅ cookie-parser MUST be BEFORE routes (YOU DID THIS RIGHT)
 app.use(cookieParser());
 
-// Trust proxy (important for Render)
-app.set('trust proxy', 1);
-
+// =======================
 // Database connection
+// =======================
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected'))
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-// Socket.io connection handling
-const connectedUsers = new Map(); // Store userId -> socketId mapping
+// =======================
+// Socket.io logic
+// =======================
+const connectedUsers = new Map(); // userId -> socketId
 
 io.on('connection', (socket) => {
   console.log('✅ User connected:', socket.id);
@@ -61,13 +77,17 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io accessible to routes
+// Make io accessible in routes
 app.set('io', io);
 app.set('connectedUsers', connectedUsers);
 
+// =======================
+// ROUTES
+// =======================
+
 // Root route
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: '🚀 Gigflow Backend API is running!',
     status: 'success',
     timestamp: new Date().toISOString(),
@@ -80,9 +100,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check route
+// Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'healthy',
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
@@ -91,14 +111,14 @@ app.get('/health', (req, res) => {
 
 // Test route
 app.get('/api/test', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Server is running!',
     connectedUsers: connectedUsers.size,
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
 
-// Debug cookies
+// Debug cookies (VERY USEFUL)
 app.get('/api/debug/cookies', (req, res) => {
   res.json({
     cookies: req.cookies,
@@ -106,34 +126,37 @@ app.get('/api/debug/cookies', (req, res) => {
   });
 });
 
-// Routes
+// API routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/gigs', require('./routes/gigs'));
 app.use('/api/bids', require('./routes/bids'));
 
-/**
- * ✅ FIXED 404 HANDLER
- * ❌ app.use('*', ...)  <-- CRASHES on Node 22
- * ✅ Middleware fallback keeps SAME behavior
- */
+// =======================
+// 404 HANDLER (Node 22 safe)
+// =======================
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     message: 'Route not found',
     requestedPath: req.originalUrl
   });
 });
 
-// Error handling middleware
+// =======================
+// ERROR HANDLER
+// =======================
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.stack);
-  res.status(err.status || 500).json({ 
+  res.status(err.status || 500).json({
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'production'
       ? 'Internal server error'
-      : err.message 
+      : err.message
   });
 });
 
+// =======================
+// SERVER START
+// =======================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
