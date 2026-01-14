@@ -9,22 +9,32 @@ const notificationSlice = createSlice({
   name: 'notifications',
   initialState,
   reducers: {
-    // ➕ ADD single notification
+    // ➕ Add one notification
     addNotification: (state, action) => {
-      state.notifications.unshift(action.payload);
+      state.notifications.unshift({
+        ...action.payload,
+        read: false,
+      });
     },
 
-    // ✅ REQUIRED — restore notifications from localStorage
+    // ♻️ Restore notifications (used by SocketContext)
     setNotifications: (state, action) => {
       state.notifications = action.payload || [];
     },
 
-    // 🧹 Clear all (used on logout)
+    // ❌ Remove single notification (used by NotificationDropdown)
+    removeNotification: (state, action) => {
+      state.notifications = state.notifications.filter(
+        (n) => n.id !== action.payload
+      );
+    },
+
+    // 🧹 Clear all notifications (logout / clear-all)
     clearNotifications: (state) => {
       state.notifications = [];
     },
 
-    // 🔕 Mark all as read (optional UX)
+    // 🔕 Mark all as read
     markAllAsRead: (state) => {
       state.notifications = state.notifications.map((n) => ({
         ...n,
@@ -36,7 +46,8 @@ const notificationSlice = createSlice({
 
 export const {
   addNotification,
-  setNotifications,     // 🔥 THIS FIXES NETLIFY BUILD
+  setNotifications,
+  removeNotification,   // 🔥 THIS FIXES CURRENT BUILD
   clearNotifications,
   markAllAsRead,
 } = notificationSlice.actions;
