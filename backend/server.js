@@ -28,6 +28,9 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Trust proxy (important for Render)
+app.set('trust proxy', 1);
+
 // Database connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected'))
@@ -64,13 +67,39 @@ io.on('connection', (socket) => {
 app.set('io', io);
 app.set('connectedUsers', connectedUsers);
 
+// ✅ Root route - THIS FIXES THE "Cannot GET /" ERROR
+app.get('/', (req, res) => {
+  res.json({ 
+    message: '🚀 Gigflow Backend API is running!',
+    status: 'success',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      test: '/api/test',
+      auth: '/api/auth',
+      gigs: '/api/gigs',
+      bids: '/api/bids'
+    }
+  });
+});
+
+// Health check route (useful for monitoring)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Test route to check if server is running
 app.get('/api/test', (req, res) => {
   res.json({ 
     message: 'Server is running!',
-    connectedUsers: connectedUsers.size 
+    connectedUsers: connectedUsers.size,
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
+
 // Debug endpoint - check cookies
 app.get('/api/debug/cookies', (req, res) => {
   res.json({
@@ -78,19 +107,32 @@ app.get('/api/debug/cookies', (req, res) => {
     headers: req.headers.cookie
   });
 });
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/gigs', require('./routes/gigs'));
 app.use('/api/bids', require('./routes/bids'));
 
+// 404 handler for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    message: 'Route not found',
+    requestedPath: req.originalUrl
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
+  console.error('❌ Error:', err.stack);
+  res.status(err.status || 500).json({ 
+    message: 'Something went wrong!', 
+    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message 
+  });
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔌 Socket.io ready for connections`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
