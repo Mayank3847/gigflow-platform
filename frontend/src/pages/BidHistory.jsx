@@ -1,215 +1,143 @@
-import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchMyBids } from '../store/slices/bidSlice';
-import {
-  DollarSign,
-  Calendar,
-  Briefcase,
-  TrendingUp,
-  CheckCircle,
-  XCircle,
-  Clock
-} from 'lucide-react';
+// SAFE BID HISTORY PAGE
+// Replace: src/pages/BidHistory.jsx
+// ============================================
+
+import { useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { Calendar, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 const BidHistory = () => {
-  const dispatch = useDispatch();
-  const { myBids } = useSelector((state) => state.bids);
-  const [filter, setFilter] = useState('all'); // all, pending, hired, rejected
+  // ✅ DEFENSIVE: Provide defaults
+  const { 
+    myBids = [] 
+  } = useSelector((state) => state.bids || {});
 
   useEffect(() => {
-    dispatch(fetchMyBids());
-  }, [dispatch]);
+    console.log('BidHistory mounted, myBids:', myBids);
+  }, [myBids]);
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  // ✅ DEFENSIVE: Check if array
+  if (!Array.isArray(myBids)) {
+    console.error('❌ myBids is not an array in BidHistory:', myBids);
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 text-lg mb-4">Error loading bid history</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'pending':
+        return <Clock size={18} className="text-yellow-600" />;
+      case 'hired':
+        return <CheckCircle size={18} className="text-green-600" />;
+      case 'rejected':
+        return <XCircle size={18} className="text-red-600" />;
+      default:
+        return <Clock size={18} className="text-gray-600" />;
+    }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return 'bg-yellow-100 text-yellow-800';
       case 'hired':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'bg-green-100 text-green-800';
       case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'bg-red-100 text-red-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-gray-100 text-gray-800';
     }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'pending':
-        return <Clock size={18} />;
-      case 'hired':
-        return <CheckCircle size={18} />;
-      case 'rejected':
-        return <XCircle size={18} />;
-      default:
-        return <Clock size={18} />;
-    }
-  };
-
-  const filteredBids =
-    filter === 'all'
-      ? myBids
-      : myBids.filter((bid) => bid.status === filter);
-
-  const stats = {
-    total: myBids.length,
-    pending: myBids.filter((b) => b.status === 'pending').length,
-    hired: myBids.filter((b) => b.status === 'hired').length,
-    rejected: myBids.filter((b) => b.status === 'rejected').length,
-    successRate:
-      myBids.length > 0
-        ? (
-            (myBids.filter((b) => b.status === 'hired').length /
-              myBids.length) *
-            100
-          ).toFixed(1)
-        : 0,
-    totalValue: myBids
-      .filter((b) => b.status === 'hired')
-      .reduce((sum, b) => sum + b.price, 0)
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">
-            Bid History
-          </h1>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Track all your bidding activity and success rate
-          </p>
-        </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-6xl mx-auto px-4">
+        <h1 className="text-3xl font-bold mb-8 text-center">
+          Bid History
+        </h1>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          {[
-            { label: 'Total Bids', value: stats.total, icon: Briefcase },
-            { label: 'Pending', value: stats.pending, icon: Clock },
-            { label: 'Hired', value: stats.hired, icon: CheckCircle },
-            { label: 'Success Rate', value: `${stats.successRate}%`, icon: TrendingUp },
-            { label: 'Total Earned', value: `$${stats.totalValue}`, icon: DollarSign }
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-lg shadow-md p-4 sm:p-6"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600 text-xs sm:text-sm">
-                  {item.label}
-                </span>
-                <item.icon size={20} />
-              </div>
-              <p className="text-2xl sm:text-3xl font-bold">{item.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-6">
-          <div className="flex flex-wrap gap-2">
-            {['all', 'pending', 'hired', 'rejected'].map((type) => (
-              <button
-                key={type}
-                onClick={() => setFilter(type)}
-                className={`px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition ${
-                  filter === type
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {type.charAt(0).toUpperCase() + type.slice(1)} (
-                {stats[type] ?? stats.total})
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Bid List */}
-        {filteredBids.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow-md">
-            <p className="text-gray-500 text-base sm:text-lg">
-              {filter === 'all'
-                ? "You haven't placed any bids yet"
-                : `No ${filter} bids found`}
+        {myBids.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">
+              No bid history available
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredBids.map((bid) => (
-              <div
-                key={bid._id}
-                className="bg-white rounded-lg shadow-md hover:shadow-lg transition p-4 sm:p-6"
-              >
-                <div className="flex flex-col lg:flex-row gap-6">
-                  {/* Left */}
-                  <div className="flex-1">
-                    <h3 className="text-lg sm:text-xl font-bold mb-1">
-                      {bid.gigId?.title || 'Gig Deleted'}
-                    </h3>
+            {myBids.map((bid) => {
+              // ✅ DEFENSIVE: Check bid exists
+              if (!bid || !bid._id) {
+                console.warn('⚠️ Invalid bid in history:', bid);
+                return null;
+              }
 
-                    {bid.gigId && (
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                        {bid.gigId.description}
-                      </p>
-                    )}
-
-                    <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-3">
-                      <h4 className="font-semibold text-sm mb-1">
-                        Your Proposal:
-                      </h4>
-                      <p className="text-sm text-gray-600">{bid.message}</p>
-                    </div>
-
-                    <div className="flex items-center text-xs sm:text-sm text-gray-500">
-                      <Calendar size={14} className="mr-1" />
-                      Submitted: {formatDate(bid.createdAt)}
-                    </div>
-                  </div>
-
-                  {/* Right */}
-                  <div className="w-full lg:w-52 flex flex-col items-start lg:items-end gap-3">
-                    <div>
-                      <p className="text-xs text-gray-500">Your Bid</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-blue-600">
-                        ${bid.price}
-                      </p>
-                    </div>
-
-                    <div
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 text-sm font-semibold ${getStatusColor(
-                        bid.status
-                      )}`}
-                    >
-                      {getStatusIcon(bid.status)}
-                      <span className="capitalize">{bid.status}</span>
-                    </div>
-
-                    {bid.status === 'hired' && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center w-full">
-                        <p className="text-green-800 font-semibold text-sm">
-                          🎉 Congratulations!
+              return (
+                <div
+                  key={bid._id}
+                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    {/* Left: Gig Info */}
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">
+                        {bid.gigId?.title || 'Gig Deleted'}
+                      </h3>
+                      {bid.gigId?.description && (
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                          {bid.gigId.description}
                         </p>
-                        <p className="text-green-600 text-xs">
-                          You won this project
-                        </p>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Calendar size={14} />
+                          {bid.createdAt 
+                            ? new Date(bid.createdAt).toLocaleDateString()
+                            : 'N/A'}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign size={14} />
+                          <span className="font-semibold">${bid.price || 0}</span>
+                        </div>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Right: Status */}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full ${getStatusColor(
+                          bid.status
+                        )}`}
+                      >
+                        {getStatusIcon(bid.status)}
+                        <span className="font-semibold capitalize">
+                          {bid.status || 'unknown'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Proposal Message */}
+                  {bid.message && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <p className="text-sm text-gray-600">
+                        <strong>Your proposal:</strong> {bid.message}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
