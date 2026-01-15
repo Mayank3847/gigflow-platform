@@ -1,3 +1,4 @@
+// src/pages/MyGigs.jsx - FINAL FIXED VERSION
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMyGigs } from '../store/slices/gigSlice';
@@ -12,10 +13,20 @@ import { DollarSign, Calendar, Users, Loader } from 'lucide-react';
 
 const MyGigs = () => {
   const dispatch = useDispatch();
-  const { myGigs, isLoading: gigsLoading } = useSelector((state) => state.gigs);
-  const { bids, isLoading, isSuccess, isError, message } = useSelector(
-    (state) => state.bids
-  );
+  
+  // ✅ DEFENSIVE: Provide default values
+  const { 
+    myGigs = [], 
+    isLoading: gigsLoading = false 
+  } = useSelector((state) => state.gigs || {});
+  
+  const { 
+    bids = [], 
+    isLoading = false, 
+    isSuccess = false, 
+    isError = false, 
+    message = '' 
+  } = useSelector((state) => state.bids || {});
 
   const [selectedGig, setSelectedGig] = useState(null);
   const { success, error } = useToast();
@@ -53,6 +64,16 @@ const MyGigs = () => {
     );
   }
 
+  // ✅ DEFENSIVE: Check if myGigs is array
+  if (!Array.isArray(myGigs)) {
+    console.error('❌ myGigs is not an array:', myGigs);
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-red-500">Error loading gigs. Please refresh the page.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-6xl mx-auto px-4">
@@ -62,100 +83,147 @@ const MyGigs = () => {
 
         {myGigs.length === 0 ? (
           <p className="text-center text-gray-500">
-            You haven’t posted any gigs yet.
+            You haven't posted any gigs yet.
           </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {myGigs.map((gig) => (
-              <div
-                key={gig._id}
-                className="bg-white rounded-lg shadow p-5"
-              >
-                <div className="flex justify-between mb-2">
-                  <h3 className="font-bold">{gig.title}</h3>
-                  <span className="text-sm text-gray-500">{gig.status}</span>
-                </div>
+            {myGigs.map((gig) => {
+              // ✅ DEFENSIVE: Check if gig exists
+              if (!gig || !gig._id) {
+                console.warn('⚠️ Invalid gig:', gig);
+                return null;
+              }
 
-                <p className="text-gray-600 mb-3 line-clamp-2">
-                  {gig.description}
-                </p>
-
-                <div className="flex justify-between text-sm text-gray-500 mb-4">
-                  <span className="flex items-center gap-1">
-                    <DollarSign size={14} /> ${gig.budget}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar size={14} />
-                    {new Date(gig.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => handleViewBids(gig._id)}
-                  className="w-full bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2"
+              return (
+                <div
+                  key={gig._id}
+                  className="bg-white rounded-lg shadow p-5"
                 >
-                  <Users size={18} />
-                  View Bids
-                </button>
-              </div>
-            ))}
+                  <div className="flex justify-between mb-2">
+                    <h3 className="font-bold">{gig.title || 'Untitled'}</h3>
+                    <span className="text-sm text-gray-500">
+                      {gig.status || 'unknown'}
+                    </span>
+                  </div>
+
+                  <p className="text-gray-600 mb-3 line-clamp-2">
+                    {gig.description || 'No description'}
+                  </p>
+
+                  <div className="flex justify-between text-sm text-gray-500 mb-4">
+                    <span className="flex items-center gap-1">
+                      <DollarSign size={14} /> ${gig.budget || 0}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Calendar size={14} />
+                      {gig.createdAt 
+                        ? new Date(gig.createdAt).toLocaleDateString()
+                        : 'N/A'}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handleViewBids(gig._id)}
+                    className="w-full bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-700 transition"
+                  >
+                    <Users size={18} />
+                    View Bids
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
         {/* ✅ BIDS MODAL */}
         {selectedGig && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between mb-4">
-                <h2 className="text-xl font-bold">Bids</h2>
-                <button onClick={() => setSelectedGig(null)}>×</button>
+                <h2 className="text-xl font-bold">Bids for this Gig</h2>
+                <button 
+                  onClick={() => setSelectedGig(null)}
+                  className="text-2xl text-gray-500 hover:text-gray-700 w-8 h-8 flex items-center justify-center"
+                >
+                  ×
+                </button>
               </div>
 
               {isLoading ? (
                 <div className="flex justify-center py-10">
                   <Loader className="animate-spin w-8 h-8 text-blue-600" />
                 </div>
+              ) : !Array.isArray(bids) ? (
+                <p className="text-center text-red-500 py-10">
+                  Error loading bids. Please try again.
+                </p>
               ) : bids.length === 0 ? (
-                <p className="text-center text-gray-500">
+                <p className="text-center text-gray-500 py-10">
                   No bids yet for this gig.
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {bids.map((bid) => (
-                    <div
-                      key={bid._id}
-                      className="border rounded p-4"
-                    >
-                      <p className="font-semibold">{bid.freelancerId.name}</p>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {bid.message}
-                      </p>
-                      <p className="font-bold mb-3">${bid.price}</p>
+                  {bids.map((bid) => {
+                    // ✅ DEFENSIVE: Check if bid exists
+                    if (!bid || !bid._id) {
+                      console.warn('⚠️ Invalid bid:', bid);
+                      return null;
+                    }
 
-                      {/* ✅ OWNER-ONLY ACTIONS */}
-                      {bid.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() =>
-                              dispatch(hireBid(bid._id))
-                            }
-                            className="bg-green-600 text-white px-3 py-1 rounded"
-                          >
-                            Hire
-                          </button>
+                    return (
+                      <div
+                        key={bid._id}
+                        className="border rounded p-4 hover:bg-gray-50 transition"
+                      >
+                        <p className="font-semibold text-lg mb-1">
+                          {bid.freelancerId?.name || 'Anonymous'}
+                        </p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {bid.message || 'No message provided'}
+                        </p>
+                        <p className="font-bold text-blue-600 mb-3">
+                          ${bid.price || 0}
+                        </p>
 
-                          <button
-                            onClick={() =>
-                              dispatch(rejectBid(bid._id))
-                            }
-                            className="bg-red-600 text-white px-3 py-1 rounded"
-                          >
-                            Reject
-                          </button>
+                        <div className="text-xs text-gray-500 mb-3">
+                          Status: <span className="font-semibold capitalize">
+                            {bid.status || 'unknown'}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        {/* ✅ OWNER-ONLY ACTIONS */}
+                        {bid.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => dispatch(hireBid(bid._id))}
+                              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition flex-1"
+                            >
+                              Hire
+                            </button>
+
+                            <button
+                              onClick={() => dispatch(rejectBid(bid._id))}
+                              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition flex-1"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+
+                        {bid.status === 'hired' && (
+                          <div className="bg-green-50 border border-green-200 rounded p-2 text-green-800 text-center text-sm">
+                            ✓ Hired
+                          </div>
+                        )}
+
+                        {bid.status === 'rejected' && (
+                          <div className="bg-red-50 border border-red-200 rounded p-2 text-red-800 text-center text-sm">
+                            ✗ Rejected
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

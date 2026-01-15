@@ -1,3 +1,4 @@
+// src/pages/MyBids.jsx - FINAL FIXED VERSION
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMyBids, updateBid, reset } from '../store/slices/bidSlice';
@@ -11,12 +12,22 @@ import {
   Clock,
   Edit2,
   X,
-  Save
+  Save,
+  Loader
 } from 'lucide-react';
 
 const MyBids = () => {
   const dispatch = useDispatch();
-  const { myBids, isSuccess, isError, message } = useSelector((state) => state.bids);
+  
+  // ✅ DEFENSIVE: Provide default values
+  const { 
+    myBids = [], 
+    isSuccess = false, 
+    isError = false, 
+    message = '',
+    isLoading = false
+  } = useSelector((state) => state.bids || {});
+  
   const [editingBid, setEditingBid] = useState(null);
   const [editForm, setEditForm] = useState({ price: '', message: '' });
   const { success, error, warning } = useToast();
@@ -40,11 +51,17 @@ const MyBids = () => {
   }, [isSuccess, isError, message, dispatch, success, error]);
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!date) return 'N/A';
+    try {
+      return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (err) {
+      console.error('Error formatting date:', err);
+      return 'Invalid date';
+    }
   };
 
   const getStatusColor = (status) => {
@@ -96,15 +113,33 @@ const MyBids = () => {
 
     dispatch(updateBid({
       bidId,
-      price: editForm.price,
+      price: parseFloat(editForm.price),
       message: editForm.message
     }));
   };
 
   const canEditBid = (bid) => {
-    return bid.gigId?.status === 'open' &&
-      (bid.status === 'pending' || bid.status === 'rejected');
+    return bid?.gigId?.status === 'open' &&
+      (bid?.status === 'pending' || bid?.status === 'rejected');
   };
+
+  // ✅ DEFENSIVE: Check if myBids is array
+  if (!Array.isArray(myBids)) {
+    console.error('❌ myBids is not an array:', myBids);
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-red-500">Error loading bids. Please refresh the page.</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader className="animate-spin w-10 h-10 text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 sm:py-8">
@@ -121,162 +156,170 @@ const MyBids = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
-            {myBids.map((bid) => (
-              <div
-                key={bid._id}
-                className="bg-white rounded-lg shadow-md hover:shadow-lg transition p-4 sm:p-6"
-              >
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Briefcase size={20} className="text-blue-600" />
-                      <h3 className="text-lg sm:text-xl font-bold text-gray-800">
-                        {bid.gigId?.title || 'Gig Deleted'}
-                      </h3>
-                    </div>
+            {myBids.map((bid) => {
+              // ✅ DEFENSIVE: Check if bid exists
+              if (!bid || !bid._id) {
+                console.warn('⚠️ Invalid bid:', bid);
+                return null;
+              }
 
-                    {bid.gigId && (
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                        {bid.gigId.description}
-                      </p>
-                    )}
-
-                    <span
-                      className={`inline-block text-xs px-2 py-1 rounded ${
-                        bid.gigId?.status === 'open'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      Gig: {bid.gigId?.status || 'N/A'}
-                    </span>
-                  </div>
-
-                  <div
-                    className={`flex items-center gap-2 px-3 py-1 rounded-lg border-2 text-sm font-semibold self-start ${getStatusColor(
-                      bid.status
-                    )}`}
-                  >
-                    {getStatusIcon(bid.status)}
-                    <span className="capitalize">{bid.status}</span>
-                  </div>
-                </div>
-
-                {editingBid === bid._id ? (
-                  /* EDIT MODE */
-                  <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-blue-800">
-                        Update Your Bid
-                      </h4>
-                      <button onClick={handleCancelEdit}>
-                        <X size={20} />
-                      </button>
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="block text-sm font-medium mb-1">
-                        New Price ($)
-                      </label>
-                      <input
-                        type="number"
-                        value={editForm.price}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, price: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-                        min="1"
-                        step="0.01"
-                      />
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium mb-1">
-                        Updated Proposal
-                      </label>
-                      <textarea
-                        value={editForm.message}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, message: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border rounded h-24 focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <button
-                      onClick={() => handleUpdateSubmit(bid._id)}
-                      className="w-full bg-blue-600 text-white py-2 rounded font-semibold flex items-center justify-center gap-2"
-                    >
-                      <Save size={18} />
-                      Save Changes
-                    </button>
-                  </div>
-                ) : (
-                  /* VIEW MODE */
-                  <>
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <h4 className="font-semibold text-sm mb-1">
-                        Your Proposal:
-                      </h4>
-                      <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                        {bid.message}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <Calendar size={16} />
-                        {formatDate(bid.createdAt)}
+              return (
+                <div
+                  key={bid._id}
+                  className="bg-white rounded-lg shadow-md hover:shadow-lg transition p-4 sm:p-6"
+                >
+                  {/* Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Briefcase size={20} className="text-blue-600" />
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-800">
+                          {bid.gigId?.title || 'Gig Deleted'}
+                        </h3>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <DollarSign size={18} className="text-blue-600" />
-                        <span className="text-xl sm:text-2xl font-bold text-blue-600">
-                          ${bid.price}
-                        </span>
-                      </div>
-                    </div>
+                      {bid.gigId && bid.gigId.description && (
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                          {bid.gigId.description}
+                        </p>
+                      )}
 
-                    {canEditBid(bid) && (
-                      <button
-                        onClick={() => handleEditClick(bid)}
-                        className="w-full bg-blue-600 text-white py-2 rounded font-semibold flex items-center justify-center gap-2"
+                      <span
+                        className={`inline-block text-xs px-2 py-1 rounded ${
+                          bid.gigId?.status === 'open'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
                       >
-                        <Edit2 size={18} />
-                        Edit Bid
+                        Gig: {bid.gigId?.status || 'N/A'}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`flex items-center gap-2 px-3 py-1 rounded-lg border-2 text-sm font-semibold self-start ${getStatusColor(
+                        bid.status
+                      )}`}
+                    >
+                      {getStatusIcon(bid.status)}
+                      <span className="capitalize">{bid.status || 'unknown'}</span>
+                    </div>
+                  </div>
+
+                  {editingBid === bid._id ? (
+                    /* EDIT MODE */
+                    <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-blue-800">
+                          Update Your Bid
+                        </h4>
+                        <button onClick={handleCancelEdit} className="text-gray-600 hover:text-gray-800">
+                          <X size={20} />
+                        </button>
+                      </div>
+
+                      <div className="mb-3">
+                        <label className="block text-sm font-medium mb-1">
+                          New Price ($)
+                        </label>
+                        <input
+                          type="number"
+                          value={editForm.price}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, price: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          min="1"
+                          step="0.01"
+                        />
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1">
+                          Updated Proposal
+                        </label>
+                        <textarea
+                          value={editForm.message}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, message: e.target.value })
+                          }
+                          className="w-full px-3 py-2 border rounded h-24 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => handleUpdateSubmit(bid._id)}
+                        className="w-full bg-blue-600 text-white py-2 rounded font-semibold flex items-center justify-center gap-2 hover:bg-blue-700 transition"
+                      >
+                        <Save size={18} />
+                        Save Changes
                       </button>
-                    )}
-
-                    {bid.status === 'hired' && (
-                      <div className="bg-green-50 border border-green-200 rounded p-3 text-green-800 text-center font-semibold">
-                        🎉 Congratulations! You won this project
+                    </div>
+                  ) : (
+                    /* VIEW MODE */
+                    <>
+                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                        <h4 className="font-semibold text-sm mb-1">
+                          Your Proposal:
+                        </h4>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                          {bid.message || 'No message'}
+                        </p>
                       </div>
-                    )}
 
-                    {bid.status === 'rejected' && bid.gigId?.status === 'open' && (
-                      <div className="bg-orange-50 border border-orange-200 rounded p-3 text-sm text-center">
-                        This bid was rejected. You can update and resubmit!
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                          <Calendar size={16} />
+                          {formatDate(bid.createdAt)}
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <DollarSign size={18} className="text-blue-600" />
+                          <span className="text-xl sm:text-2xl font-bold text-blue-600">
+                            ${bid.price || 0}
+                          </span>
+                        </div>
                       </div>
-                    )}
 
-                    {bid.status === 'rejected' && bid.gigId?.status !== 'open' && (
-                      <div className="bg-gray-100 border border-gray-300 rounded p-3 text-sm text-center">
-                        Gig is no longer available
-                      </div>
-                    )}
+                      {canEditBid(bid) && (
+                        <button
+                          onClick={() => handleEditClick(bid)}
+                          className="w-full bg-blue-600 text-white py-2 rounded font-semibold flex items-center justify-center gap-2 hover:bg-blue-700 transition"
+                        >
+                          <Edit2 size={18} />
+                          Edit Bid
+                        </button>
+                      )}
 
-                    {!canEditBid(bid) &&
-                      bid.status === 'pending' &&
-                      bid.gigId?.status !== 'open' && (
-                        <div className="bg-gray-100 border border-gray-300 rounded p-3 text-sm text-center">
-                          Gig has been closed
+                      {bid.status === 'hired' && (
+                        <div className="bg-green-50 border border-green-200 rounded p-3 text-green-800 text-center font-semibold">
+                          🎉 Congratulations! You won this project
                         </div>
                       )}
-                  </>
-                )}
-              </div>
-            ))}
+
+                      {bid.status === 'rejected' && bid.gigId?.status === 'open' && (
+                        <div className="bg-orange-50 border border-orange-200 rounded p-3 text-sm text-center">
+                          This bid was rejected. You can update and resubmit!
+                        </div>
+                      )}
+
+                      {bid.status === 'rejected' && bid.gigId?.status !== 'open' && (
+                        <div className="bg-gray-100 border border-gray-300 rounded p-3 text-sm text-center">
+                          Gig is no longer available
+                        </div>
+                      )}
+
+                      {!canEditBid(bid) &&
+                        bid.status === 'pending' &&
+                        bid.gigId?.status !== 'open' && (
+                          <div className="bg-gray-100 border border-gray-300 rounded p-3 text-sm text-center">
+                            Gig has been closed
+                          </div>
+                        )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

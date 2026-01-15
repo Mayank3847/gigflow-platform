@@ -1,3 +1,4 @@
+// src/components/Navbar.jsx - FINAL FIXED VERSION
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
@@ -5,19 +6,23 @@ import { sessionManager } from '../utils/sessionManager';
 import { Briefcase, LogOut, User, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import NotificationDropdown from './NotificationDropdown';
-import { useSocket } from '../context/SocketContext'; // ✅ ADDED
+import { useSocket } from '../context/SocketContext';
 
 const Navbar = () => {
-  const { user } = useSelector((state) => state.auth);
-  const notifications =
-  useSelector((state) => state.notifications?.notifications) || [];
+  // ✅ DEFENSIVE: Provide default values
+  const { user = null } = useSelector((state) => state.auth || {});
+  const notifications = useSelector((state) => state.notifications?.notifications) || [];
+  
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { markAllAsRead } = useSocket(); // ✅ ADDED
+  const { markAllAsRead } = useSocket();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // ✅ DEFENSIVE: Ensure notifications is array before using filter
+  const unreadCount = Array.isArray(notifications) 
+    ? notifications.filter((n) => !n?.read).length 
+    : 0;
 
   const handleLogout = () => {
     sessionManager.clearSession();
@@ -70,7 +75,7 @@ const Navbar = () => {
               <div className="hidden xl:flex items-center space-x-2 2xl:space-x-4">
                 <Link
                   to="/post-gig"
-                  className="bg-white text-blue-600 px-3 2xl:px-5 py-2 rounded-lg font-semibold shadow-md"
+                  className="bg-white text-blue-600 px-3 2xl:px-5 py-2 rounded-lg font-semibold shadow-md hover:bg-gray-100 transition"
                 >
                   + Post Gig
                 </Link>
@@ -78,19 +83,19 @@ const Navbar = () => {
                 {/* 🔔 NOTIFICATION DROPDOWN */}
                 <NotificationDropdown
                   unreadCount={unreadCount}
-                  onMarkAllRead={markAllAsRead} // ✅ CONNECTED
+                  onMarkAllRead={markAllAsRead}
                 />
 
                 <div className="flex items-center space-x-2 bg-blue-700 px-4 py-2 rounded-lg">
                   <User size={14} />
                   <span className="text-xs truncate max-w-[100px]">
-                    {user.name}
+                    {user.name || user.email || 'User'}
                   </span>
                 </div>
 
                 <button
                   onClick={handleLogout}
-                  className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg"
+                  className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg transition"
                 >
                   <LogOut size={14} />
                   <span className="text-xs">Logout</span>
@@ -104,7 +109,7 @@ const Navbar = () => {
                   onMarkAllRead={markAllAsRead}
                 />
                 <button
-                  className="p-2 hover:bg-blue-700 rounded-lg"
+                  className="p-2 hover:bg-blue-700 rounded-lg transition"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 >
                   {mobileMenuOpen ? <X /> : <Menu />}
@@ -115,17 +120,27 @@ const Navbar = () => {
             <>
               {/* Not Logged In */}
               <div className="hidden md:flex items-center space-x-4">
-                <Link to="/gigs">Browse Gigs</Link>
-                <Link to="/login">Login</Link>
+                <Link 
+                  to="/gigs"
+                  className="hover:text-gray-200 transition"
+                >
+                  Browse Gigs
+                </Link>
+                <Link 
+                  to="/login"
+                  className="hover:text-gray-200 transition"
+                >
+                  Login
+                </Link>
                 <Link
                   to="/register"
-                  className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold"
+                  className="bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition"
                 >
                   Sign Up
                 </Link>
               </div>
               <button
-                className="md:hidden p-2"
+                className="md:hidden p-2 hover:bg-blue-700 rounded-lg transition"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
                 {mobileMenuOpen ? <X /> : <Menu />}
@@ -139,6 +154,9 @@ const Navbar = () => {
           <div className="xl:hidden py-4 space-y-2 border-t border-blue-500">
             {user ? (
               <>
+                <div className="block py-2 text-sm font-semibold border-b border-blue-500 mb-2">
+                  Welcome, {user.name || 'User'}
+                </div>
                 <NavLink to="/gigs" onClick={() => setMobileMenuOpen(false)}>
                   Browse Gigs
                 </NavLink>
@@ -154,19 +172,44 @@ const Navbar = () => {
                 >
                   History
                 </NavLink>
-                <NavLink to="/post-gig">+ Post a Gig</NavLink>
+                <Link
+                  to="/post-gig"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full bg-white text-blue-600 py-2 rounded-lg mt-2 text-center font-semibold hover:bg-gray-100 transition"
+                >
+                  + Post a Gig
+                </Link>
                 <button
                   onClick={handleLogout}
-                  className="w-full bg-red-500 py-2 rounded-lg mt-2"
+                  className="w-full bg-red-500 py-2 rounded-lg mt-2 hover:bg-red-600 transition flex items-center justify-center gap-2"
                 >
+                  <LogOut size={16} />
                   Logout
                 </button>
               </>
             ) : (
               <>
-                <NavLink to="/gigs">Browse Gigs</NavLink>
-                <NavLink to="/login">Login</NavLink>
-                <NavLink to="/register">Sign Up</NavLink>
+                <Link
+                  to="/gigs"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 px-4 hover:bg-blue-700 rounded"
+                >
+                  Browse Gigs
+                </Link>
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-2 px-4 hover:bg-blue-700 rounded"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block w-full bg-white text-blue-600 py-2 rounded-lg mt-2 text-center font-semibold"
+                >
+                  Sign Up
+                </Link>
               </>
             )}
           </div>

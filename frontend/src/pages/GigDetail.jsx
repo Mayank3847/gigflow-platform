@@ -1,3 +1,4 @@
+// src/pages/GigDetail.jsx - FINAL FIXED VERSION
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -11,10 +12,14 @@ const GigDetail = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { user } = useSelector((state) => state.auth);
-  const { isLoading, isSuccess, isError, message } = useSelector(
-    (state) => state.bids
-  );
+  // ✅ DEFENSIVE: Provide default values
+  const { user = null } = useSelector((state) => state.auth || {});
+  const { 
+    isLoading = false, 
+    isSuccess = false, 
+    isError = false, 
+    message = '' 
+  } = useSelector((state) => state.bids || {});
 
   const { success, error, warning } = useToast();
 
@@ -26,12 +31,18 @@ const GigDetail = () => {
   useEffect(() => {
     const fetchGig = async () => {
       try {
+        setLoading(true);
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/gigs/${id}`
         );
-        setGig(response.data);
+        
+        // ✅ DEFENSIVE: Check response structure
+        const gigData = response.data?.gig || response.data || null;
+        setGig(gigData);
       } catch (err) {
         console.error('❌ Error fetching gig:', err);
+        error('Failed to load gig details');
+        setGig(null);
       } finally {
         setLoading(false);
       }
@@ -40,7 +51,7 @@ const GigDetail = () => {
     fetchGig();
     dispatch(reset());
     setHasShownToast(false);
-  }, [id, dispatch]);
+  }, [id, dispatch, error]);
 
   useEffect(() => {
     if (isSuccess && !hasShownToast) {
@@ -66,12 +77,16 @@ const GigDetail = () => {
       return;
     }
 
-    if (bidData.price <= 0) {
+    if (parseFloat(bidData.price) <= 0) {
       warning('Price must be greater than 0');
       return;
     }
 
-    dispatch(createBid({ gigId: id, ...bidData }));
+    dispatch(createBid({ 
+      gigId: id, 
+      price: parseFloat(bidData.price),
+      message: bidData.message.trim()
+    }));
   };
 
   if (loading) {
@@ -85,96 +100,126 @@ const GigDetail = () => {
   if (!gig) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Gig not found</p>
+        <div className="text-center">
+          <p className="text-gray-500 text-lg mb-4">Gig not found</p>
+          <button
+            onClick={() => navigate('/gigs')}
+            className="text-blue-600 hover:underline"
+          >
+            Back to All Gigs
+          </button>
+        </div>
       </div>
     );
   }
 
-  // ✅ ROLE CHECK (FIX)
-  const isOwner = user && gig.ownerId?._id === user._id;
+  // ✅ DEFENSIVE: Check if user and gig.ownerId exist before comparison
+  const isOwner = user && gig.ownerId && 
+                  (gig.ownerId._id === user._id || gig.ownerId === user._id);
 
   return (
     <div className="min-h-screen bg-gray-50 py-6">
       <div className="max-w-4xl mx-auto px-4">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-blue-600 mb-6"
+          className="flex items-center gap-2 text-blue-600 mb-6 hover:text-blue-700 transition"
         >
           <ArrowLeft size={18} />
           Back
         </button>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex justify-between items-start mb-4">
-            <h1 className="text-2xl font-bold">{gig.title}</h1>
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+            <h1 className="text-2xl sm:text-3xl font-bold">{gig.title || 'Untitled Gig'}</h1>
             <span
-              className={`px-3 py-1 rounded-full text-sm font-semibold ${
+              className={`px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap self-start ${
                 gig.status === 'open'
                   ? 'bg-green-100 text-green-800'
                   : 'bg-gray-200 text-gray-700'
               }`}
             >
-              {gig.status}
+              {gig.status === 'open' ? '🟢 Open' : '🔒 Filled'}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 border-b pb-4">
-            <div className="flex gap-2">
-              <DollarSign className="text-blue-600" />
-              <span>${gig.budget}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 pb-4 border-b">
+            <div className="flex items-center gap-2">
+              <DollarSign className="text-blue-600" size={20} />
+              <span className="font-semibold">${gig.budget || 0}</span>
             </div>
 
-            <div className="flex gap-2">
-              <User className="text-blue-600" />
-              <span>{gig.ownerId.name}</span>
+            <div className="flex items-center gap-2">
+              <User className="text-blue-600" size={20} />
+              <span>{gig.ownerId?.name || 'Unknown'}</span>
             </div>
 
-            <div className="flex gap-2">
-              <Calendar className="text-blue-600" />
-              <span>{new Date(gig.createdAt).toLocaleDateString()}</span>
+            <div className="flex items-center gap-2">
+              <Calendar className="text-blue-600" size={20} />
+              <span>
+                {gig.createdAt 
+                  ? new Date(gig.createdAt).toLocaleDateString()
+                  : 'N/A'}
+              </span>
             </div>
           </div>
 
-          <p className="mb-6 text-gray-700 whitespace-pre-wrap">
-            {gig.description}
-          </p>
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-2">Description</h2>
+            <p className="text-gray-700 whitespace-pre-wrap">
+              {gig.description || 'No description provided'}
+            </p>
+          </div>
 
           {/* ✅ NON-OWNER BID FORM */}
-          {!isOwner && gig.status === 'open' && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h2 className="font-bold mb-3">Submit Your Bid</h2>
+          {!isOwner && gig.status === 'open' && user && (
+            <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+              <h2 className="text-xl font-bold mb-4">Submit Your Bid</h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <input
-                  type="number"
-                  placeholder="Your price"
-                  value={bidData.price}
-                  onChange={(e) =>
-                    setBidData({ ...bidData, price: e.target.value })
-                  }
-                  className="w-full border px-3 py-2 rounded"
-                  disabled={isLoading}
-                />
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Your Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Enter your price"
+                    value={bidData.price}
+                    onChange={(e) =>
+                      setBidData({ ...bidData, price: e.target.value })
+                    }
+                    className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isLoading}
+                    min="1"
+                    step="0.01"
+                    required
+                  />
+                </div>
 
-                <textarea
-                  placeholder="Your proposal"
-                  value={bidData.message}
-                  onChange={(e) =>
-                    setBidData({ ...bidData, message: e.target.value })
-                  }
-                  className="w-full border px-3 py-2 rounded h-28"
-                  disabled={isLoading}
-                />
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Your Proposal
+                  </label>
+                  <textarea
+                    placeholder="Describe why you're the best fit for this project..."
+                    value={bidData.message}
+                    onChange={(e) =>
+                      setBidData({ ...bidData, message: e.target.value })
+                    }
+                    className="w-full border border-gray-300 px-4 py-2 rounded-lg h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-blue-600 text-white py-2 rounded flex justify-center gap-2"
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-blue-300 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                 >
                   {isLoading ? (
                     <>
-                      <Loader className="animate-spin w-4 h-4" />
-                      Submitting…
+                      <Loader className="animate-spin w-5 h-5" />
+                      <span>Submitting...</span>
                     </>
                   ) : (
                     'Submit Bid'
@@ -184,16 +229,33 @@ const GigDetail = () => {
             </div>
           )}
 
-          {/* ✅ OWNER MESSAGE */}
-          {isOwner && (
-            <div className="bg-blue-50 border border-blue-200 rounded p-4 text-blue-800">
-              This is your gig. Manage bids from <b>My Posted Gigs</b>.
+          {/* ✅ NOT LOGGED IN */}
+          {!user && gig.status === 'open' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+              <p className="text-blue-800 mb-4">
+                Please log in to submit a bid for this gig
+              </p>
+              <button
+                onClick={() => navigate('/login', { state: { from: location.pathname } })}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                Log In
+              </button>
             </div>
           )}
 
+          {/* ✅ OWNER MESSAGE */}
+          {isOwner && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-blue-800">
+              <p className="font-semibold mb-2">This is your gig</p>
+              <p>Manage bids from <strong>My Posted Gigs</strong> page.</p>
+            </div>
+          )}
+
+          {/* ✅ GIG CLOSED */}
           {gig.status === 'assigned' && !isOwner && (
-            <div className="bg-gray-100 border rounded p-4 text-gray-700">
-              This gig has already been assigned.
+            <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 text-gray-700 text-center">
+              <p className="font-semibold">This gig has already been assigned to a freelancer.</p>
             </div>
           )}
         </div>
