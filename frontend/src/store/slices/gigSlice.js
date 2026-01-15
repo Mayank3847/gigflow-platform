@@ -1,4 +1,4 @@
-// src/redux/slices/gigSlice.js - Complete Gig Management Slice
+// src/redux/slices/gigSlice.js - FINAL COMPLETE VERSION
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { api } from './authSlice'; // ✅ shared authenticated axios instance
 
@@ -21,13 +21,12 @@ export const getAllGigs = createAsyncThunk(
 
       const response = await api.get(url);
 
-      console.log(
-        '✅ Gigs fetched successfully:',
-        Array.isArray(response.data) ? response.data.length : 0,
-        'gigs'
-      );
+      // ✅ DEFENSIVE: Ensure we always return an array
+      const gigs = Array.isArray(response.data) ? response.data : 
+                   Array.isArray(response.data?.gigs) ? response.data.gigs : [];
 
-      return response.data;
+      console.log('✅ Gigs fetched successfully:', gigs.length, 'gigs');
+      return gigs;
     } catch (error) {
       console.error('❌ Failed to fetch gigs:', error.response?.data);
       return rejectWithValue(
@@ -49,13 +48,12 @@ export const getMyGigs = createAsyncThunk(
       // ✅ SINGLE CANONICAL ROUTE (backend supports both, but UI uses one)
       const response = await api.get('/api/gigs/my-gigs');
 
-      console.log(
-        '✅ My gigs fetched successfully:',
-        Array.isArray(response.data) ? response.data.length : 0,
-        'gigs'
-      );
+      // ✅ DEFENSIVE: Ensure we always return an array
+      const gigs = Array.isArray(response.data) ? response.data : 
+                   Array.isArray(response.data?.gigs) ? response.data.gigs : [];
 
-      return response.data;
+      console.log('✅ My gigs fetched successfully:', gigs.length, 'gigs');
+      return gigs;
     } catch (error) {
       console.error('❌ Failed to fetch my gigs:', error.response?.data);
       return rejectWithValue(
@@ -76,8 +74,11 @@ export const getGigById = createAsyncThunk(
 
       const response = await api.get(`/api/gigs/${gigId}`);
 
-      console.log('✅ Gig fetched successfully:', response.data?.title);
-      return response.data;
+      // ✅ DEFENSIVE: Ensure we have a gig object
+      const gig = response.data?.gig || response.data || null;
+
+      console.log('✅ Gig fetched successfully:', gig?.title || 'Unknown');
+      return gig;
     } catch (error) {
       console.error('❌ Failed to fetch gig:', error.response?.data);
       return rejectWithValue(
@@ -102,8 +103,11 @@ export const createGig = createAsyncThunk(
         budget: parseFloat(gigData.budget),
       });
 
-      console.log('✅ Gig created successfully:', response.data);
-      return response.data;
+      // ✅ DEFENSIVE: Ensure we have a gig object
+      const gig = response.data?.gig || response.data || null;
+
+      console.log('✅ Gig created successfully:', gig);
+      return gig;
     } catch (error) {
       console.error('❌ Failed to create gig:', error.response?.data);
       return rejectWithValue(
@@ -130,8 +134,11 @@ export const updateGig = createAsyncThunk(
         budget: parseFloat(gigData.budget),
       });
 
-      console.log('✅ Gig updated successfully:', response.data);
-      return response.data;
+      // ✅ DEFENSIVE: Ensure we have a gig object
+      const gig = response.data?.gig || response.data || null;
+
+      console.log('✅ Gig updated successfully:', gig);
+      return gig;
     } catch (error) {
       console.error('❌ Failed to update gig:', error.response?.data);
       return rejectWithValue(
@@ -208,7 +215,7 @@ const gigSlice = createSlice({
      * Store search query
      */
     setSearchQuery: (state, action) => {
-      state.searchQuery = action.payload;
+      state.searchQuery = action.payload || '';
     },
 
     /**
@@ -231,12 +238,13 @@ const gigSlice = createSlice({
       .addCase(getAllGigs.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.gigs = action.payload;
+        // ✅ DEFENSIVE: Ensure array
+        state.gigs = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(getAllGigs.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.message = action.payload;
+        state.message = action.payload || 'Failed to load gigs';
         state.gigs = [];
       })
 
@@ -251,12 +259,13 @@ const gigSlice = createSlice({
       .addCase(getMyGigs.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.myGigs = action.payload;
+        // ✅ DEFENSIVE: Ensure array
+        state.myGigs = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(getMyGigs.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.message = action.payload;
+        state.message = action.payload || 'Failed to load your gigs';
         state.myGigs = [];
       })
 
@@ -271,12 +280,12 @@ const gigSlice = createSlice({
       .addCase(getGigById.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.currentGig = action.payload;
+        state.currentGig = action.payload || null;
       })
       .addCase(getGigById.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
-        state.message = action.payload;
+        state.message = action.payload || 'Failed to load gig';
         state.currentGig = null;
       })
 
@@ -292,54 +301,86 @@ const gigSlice = createSlice({
       .addCase(createGig.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.gigs.unshift(action.payload);
-        state.myGigs.unshift(action.payload);
+        // ✅ DEFENSIVE: Only add if we have a valid gig
+        if (action.payload && action.payload._id) {
+          state.gigs.unshift(action.payload);
+          state.myGigs.unshift(action.payload);
+        }
         state.message = 'Gig created successfully!';
       })
       .addCase(createGig.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.isSuccess = false;
-        state.message = action.payload;
+        state.message = action.payload || 'Failed to create gig';
       })
 
       // ===============================
       // UPDATE GIG
       // ===============================
+      .addCase(updateGig.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.isSuccess = false;
+        state.message = '';
+      })
       .addCase(updateGig.fulfilled, (state, action) => {
-        const update = action.payload;
+        state.isLoading = false;
+        state.isSuccess = true;
 
-        const gIdx = state.gigs.findIndex(g => g._id === update._id);
-        if (gIdx !== -1) state.gigs[gIdx] = update;
+        // ✅ DEFENSIVE: Check payload exists
+        if (action.payload && action.payload._id) {
+          const update = action.payload;
 
-        const mIdx = state.myGigs.findIndex(g => g._id === update._id);
-        if (mIdx !== -1) state.myGigs[mIdx] = update;
+          const gIdx = state.gigs.findIndex(g => g._id === update._id);
+          if (gIdx !== -1) state.gigs[gIdx] = update;
 
-        if (state.currentGig?._id === update._id) {
-          state.currentGig = update;
+          const mIdx = state.myGigs.findIndex(g => g._id === update._id);
+          if (mIdx !== -1) state.myGigs[mIdx] = update;
+
+          if (state.currentGig?._id === update._id) {
+            state.currentGig = update;
+          }
         }
 
         state.message = 'Gig updated successfully!';
-        state.isSuccess = true;
+      })
+      .addCase(updateGig.rejected, (state, action) => {
         state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload || 'Failed to update gig';
       })
 
       // ===============================
       // DELETE GIG
       // ===============================
+      .addCase(deleteGig.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.message = '';
+      })
       .addCase(deleteGig.fulfilled, (state, action) => {
-        const id = action.payload;
+        state.isLoading = false;
+        state.isSuccess = true;
 
-        state.gigs = state.gigs.filter(g => g._id !== id);
-        state.myGigs = state.myGigs.filter(g => g._id !== id);
+        // ✅ DEFENSIVE: Only filter if we have a valid ID
+        if (action.payload) {
+          const id = action.payload;
 
-        if (state.currentGig?._id === id) {
-          state.currentGig = null;
+          state.gigs = state.gigs.filter(g => g._id !== id);
+          state.myGigs = state.myGigs.filter(g => g._id !== id);
+
+          if (state.currentGig?._id === id) {
+            state.currentGig = null;
+          }
         }
 
         state.message = 'Gig deleted successfully!';
-        state.isSuccess = true;
+      })
+      .addCase(deleteGig.rejected, (state, action) => {
         state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload || 'Failed to delete gig';
       });
   },
 });

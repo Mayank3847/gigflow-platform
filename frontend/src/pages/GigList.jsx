@@ -1,6 +1,7 @@
+// src/pages/GigList.jsx - FINAL COMPLETE VERSION
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getAllGigs } from '../store/slices/gigSlice'; // ✅ FIXED
+import { getAllGigs } from '../store/slices/gigSlice';
 import { Link } from 'react-router-dom';
 import { Search, DollarSign, Calendar, Filter } from 'lucide-react';
 
@@ -8,30 +9,44 @@ const GigList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyOpen, setShowOnlyOpen] = useState(true);
   const dispatch = useDispatch();
-  const { gigs, isLoading } = useSelector((state) => state.gigs);
+  
+  // ✅ DEFENSIVE: Provide default values
+  const { 
+    gigs = [], 
+    isLoading = false 
+  } = useSelector((state) => state.gigs || {});
 
   useEffect(() => {
-    // ✅ FIXED: correct thunk
+    // ✅ FIXED: Correct thunk call
     dispatch(getAllGigs());
   }, [dispatch]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // ✅ FIXED: thunk expects an object
+    // ✅ FIXED: Thunk expects an object
     dispatch(getAllGigs({ search: searchTerm }));
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    if (!date) return 'N/A';
+    try {
+      return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
   };
 
-  const filteredGigs = showOnlyOpen 
-    ? gigs.filter(gig => gig.status === 'open')
-    : gigs;
+  // ✅ DEFENSIVE: Check if gigs is array before filtering
+  const filteredGigs = Array.isArray(gigs)
+    ? (showOnlyOpen 
+        ? gigs.filter(gig => gig?.status === 'open')
+        : gigs)
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 xs:py-6 sm:py-8">
@@ -94,89 +109,106 @@ const GigList = () => {
           )}
         </div>
 
+        {/* Loading State */}
         {isLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-b-2 border-blue-600"></div>
           </div>
-        ) : filteredGigs.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-sm xs:text-base sm:text-lg">
-              {showOnlyOpen ? 'No open gigs found' : 'No gigs found'}
-            </p>
-            {showOnlyOpen && gigs.length > 0 && (
-              <button
-                onClick={() => setShowOnlyOpen(false)}
-                className="mt-4 text-blue-600 hover:underline text-xs xs:text-sm"
-              >
-                Show all gigs including filled positions
-              </button>
-            )}
-          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 xs:gap-4 sm:gap-6">
-            {filteredGigs.map((gig) => (
-              <div
-                key={gig._id}
-                className={`bg-white rounded-lg shadow-md p-4 xs:p-5 sm:p-6 hover:shadow-lg transition ${
-                  gig.status === 'assigned'
-                    ? 'opacity-75 border-2 border-gray-300'
-                    : ''
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-base xs:text-lg sm:text-xl font-bold text-gray-800 flex-1 break-words pr-2">
-                    {gig.title}
-                  </h3>
-                  <span
-                    className={`px-2 xs:px-3 py-1 rounded-full text-[10px] xs:text-xs font-semibold whitespace-nowrap ${
-                      gig.status === 'open'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {gig.status === 'open' ? '🟢 Open' : '🔒 Filled'}
-                  </span>
-                </div>
-
-                <p className="text-gray-600 mb-3 xs:mb-4 line-clamp-3 text-xs xs:text-sm">
-                  {gig.description}
+          <>
+            {/* Empty State */}
+            {filteredGigs.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-sm xs:text-base sm:text-lg">
+                  {showOnlyOpen ? 'No open gigs found' : 'No gigs found'}
                 </p>
-
-                <div className="flex items-center justify-between text-xs xs:text-sm text-gray-500 mb-3 xs:mb-4">
-                  <div className="flex items-center space-x-1">
-                    <DollarSign className="w-3 h-3 xs:w-4 xs:h-4" />
-                    <span className="font-semibold text-blue-600">
-                      ${gig.budget}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-3 h-3 xs:w-4 xs:h-4" />
-                    <span className="text-[10px] xs:text-xs">
-                      {formatDate(gig.createdAt)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mb-3 xs:mb-4 text-xs xs:text-sm text-gray-600">
-                  Posted by:{' '}
-                  <span className="font-semibold">{gig.ownerId?.name}</span>
-                </div>
-
-                {gig.status === 'open' ? (
-                  <Link
-                    to={`/gigs/${gig._id}`}
-                    className="block w-full text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition text-xs xs:text-sm"
+                {showOnlyOpen && gigs.length > 0 && (
+                  <button
+                    onClick={() => setShowOnlyOpen(false)}
+                    className="mt-4 text-blue-600 hover:underline text-xs xs:text-sm"
                   >
-                    View Details & Bid
-                  </Link>
-                ) : (
-                  <div className="w-full text-center bg-gray-200 text-gray-600 py-2 rounded cursor-not-allowed text-xs xs:text-sm">
-                    Position Filled
-                  </div>
+                    Show all gigs including filled positions
+                  </button>
                 )}
               </div>
-            ))}
-          </div>
+            ) : (
+              /* Gigs Grid */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 xs:gap-4 sm:gap-6">
+                {filteredGigs.map((gig) => {
+                  // ✅ DEFENSIVE: Check if gig exists and has required fields
+                  if (!gig || !gig._id) {
+                    console.warn('⚠️ Invalid gig object:', gig);
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      key={gig._id}
+                      className={`bg-white rounded-lg shadow-md p-4 xs:p-5 sm:p-6 hover:shadow-lg transition ${
+                        gig.status === 'assigned'
+                          ? 'opacity-75 border-2 border-gray-300'
+                          : ''
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-base xs:text-lg sm:text-xl font-bold text-gray-800 flex-1 break-words pr-2">
+                          {gig.title || 'Untitled Gig'}
+                        </h3>
+                        <span
+                          className={`px-2 xs:px-3 py-1 rounded-full text-[10px] xs:text-xs font-semibold whitespace-nowrap ${
+                            gig.status === 'open'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {gig.status === 'open' ? '🟢 Open' : '🔒 Filled'}
+                        </span>
+                      </div>
+
+                      <p className="text-gray-600 mb-3 xs:mb-4 line-clamp-3 text-xs xs:text-sm">
+                        {gig.description || 'No description available'}
+                      </p>
+
+                      <div className="flex items-center justify-between text-xs xs:text-sm text-gray-500 mb-3 xs:mb-4">
+                        <div className="flex items-center space-x-1">
+                          <DollarSign className="w-3 h-3 xs:w-4 xs:h-4" />
+                          <span className="font-semibold text-blue-600">
+                            ${gig.budget?.toFixed(2) || '0.00'}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-3 h-3 xs:w-4 xs:h-4" />
+                          <span className="text-[10px] xs:text-xs">
+                            {formatDate(gig.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mb-3 xs:mb-4 text-xs xs:text-sm text-gray-600">
+                        Posted by:{' '}
+                        <span className="font-semibold">
+                          {gig.ownerId?.name || 'Unknown'}
+                        </span>
+                      </div>
+
+                      {gig.status === 'open' ? (
+                        <Link
+                          to={`/gigs/${gig._id}`}
+                          className="block w-full text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition text-xs xs:text-sm"
+                        >
+                          View Details & Bid
+                        </Link>
+                      ) : (
+                        <div className="w-full text-center bg-gray-200 text-gray-600 py-2 rounded cursor-not-allowed text-xs xs:text-sm">
+                          Position Filled
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

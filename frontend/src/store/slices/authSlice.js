@@ -1,7 +1,8 @@
-// src/redux/slices/authSlice.js - Complete Redux Auth Slice
+// src/redux/slices/authSlice.js - FINAL COMPLETE VERSION
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { sessionManager } from '../../utils/sessionManager';
+import { clearNotifications } from './notificationSlice'; // ✅ Import for logout
 
 // ============================================
 // API Configuration
@@ -93,14 +94,19 @@ export const register = createAsyncThunk(
 
       console.log('✅ Registration successful:', response.data);
 
+      // ✅ DEFENSIVE: Check if response has expected structure
+      const responseData = response.data || {};
+      const token = responseData.token;
+      const user = responseData.user || responseData;
+
       // Store token if provided
-      if (response.data.token) {
-        sessionManager.setSession(response.data.token, response.data.user || response.data);
-        localStorage.setItem('token', response.data.token);
-        sessionStorage.setItem('token', response.data.token);
+      if (token) {
+        sessionManager.setSession(token, user);
+        localStorage.setItem('token', token);
+        sessionStorage.setItem('token', token);
       }
 
-      return response.data;
+      return responseData;
     } catch (error) {
       console.error('❌ Registration failed:', error.response?.data);
       return rejectWithValue(
@@ -128,14 +134,19 @@ export const login = createAsyncThunk(
 
       console.log('✅ Login successful:', response.data);
 
+      // ✅ DEFENSIVE: Check response structure
+      const responseData = response.data || {};
+      const token = responseData.token;
+      const user = responseData.user || responseData;
+
       // Store token if provided
-      if (response.data.token) {
-        sessionManager.setSession(response.data.token, response.data.user || response.data);
-        localStorage.setItem('token', response.data.token);
-        sessionStorage.setItem('token', response.data.token);
+      if (token) {
+        sessionManager.setSession(token, user);
+        localStorage.setItem('token', token);
+        sessionStorage.setItem('token', token);
       }
 
-      return response.data;
+      return responseData;
     } catch (error) {
       console.error('❌ Login failed:', error.response?.data);
       return rejectWithValue(
@@ -152,7 +163,7 @@ export const login = createAsyncThunk(
  */
 export const logout = createAsyncThunk(
   'auth/logout', 
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, dispatch }) => {
     try {
       console.log('👋 Logging out user...');
       
@@ -161,11 +172,18 @@ export const logout = createAsyncThunk(
       console.log('✅ Logout successful');
       sessionManager.clearSession();
       
+      // ✅ Clear notifications on logout
+      dispatch(clearNotifications());
+      
       return null;
     } catch (error) {
       console.error('❌ Logout error:', error);
       // Clear session anyway even if API call fails
       sessionManager.clearSession();
+      
+      // ✅ Clear notifications even on error
+      dispatch(clearNotifications());
+      
       return rejectWithValue(
         error.response?.data?.message || 
         'Logout failed'
@@ -193,7 +211,8 @@ export const getMe = createAsyncThunk(
       
       console.log('✅ User fetched successfully:', response.data);
       
-      return response.data;
+      // ✅ DEFENSIVE: Return proper structure
+      return response.data || {};
     } catch (error) {
       console.error('❌ Get me failed:', error.response?.data);
       
@@ -272,14 +291,15 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isSuccess = true;
         state.isAuthenticated = true;
-        state.user = action.payload.user || action.payload;
+        // ✅ DEFENSIVE: Handle different response structures
+        state.user = action.payload?.user || action.payload || null;
         state.message = 'Registration successful!';
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.isAuthenticated = false;
-        state.message = action.payload;
+        state.message = action.payload || 'Registration failed';
         state.user = null;
       })
       
@@ -296,14 +316,15 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isSuccess = true;
         state.isAuthenticated = true;
-        state.user = action.payload.user || action.payload;
+        // ✅ DEFENSIVE: Handle different response structures
+        state.user = action.payload?.user || action.payload || null;
         state.message = 'Login successful!';
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.isAuthenticated = false;
-        state.message = action.payload;
+        state.message = action.payload || 'Login failed';
         state.user = null;
       })
       
@@ -320,8 +341,7 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.message = '';
         state.isLoading = false;
-        dispatch(clearNotifications());
-
+        // ✅ clearNotifications is dispatched in the thunk
       })
       .addCase(logout.rejected, (state) => {
         // Clear anyway even if logout fails
@@ -340,7 +360,8 @@ const authSlice = createSlice({
         state.isLoading = true;
       })
       .addCase(getMe.fulfilled, (state, action) => {
-        state.user = action.payload.user || action.payload;
+        // ✅ DEFENSIVE: Handle different response structures
+        state.user = action.payload?.user || action.payload || null;
         state.isAuthenticated = true;
         state.isLoading = false;
       })

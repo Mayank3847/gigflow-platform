@@ -1,3 +1,4 @@
+// src/App.jsx - FINAL COMPLETE VERSION
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -22,24 +23,48 @@ import BidHistory from './pages/BidHistory';
 
 function AppContent() {
   const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
+  
+  // ✅ DEFENSIVE: Provide default values
+  const { 
+    user = null 
+  } = useSelector((state) => state.auth || {});
 
-  // ✅ FIX: Do NOT force logout on refresh
+  /**
+   * ✅ CRITICAL FIX: Restore session on page load
+   * This runs ONCE when app mounts
+   * DO NOT clear session on mount - that breaks auth!
+   */
   useEffect(() => {
-    const isExistingSession = sessionManager.initSession();
+    const token = sessionManager.getToken();
+    const hasSession = sessionManager.isSessionActive();
 
-    if (isExistingSession) {
-      console.log('🔄 Existing session - checking authentication');
-      dispatch(clearUser());
+    console.log('🔄 App mounted - checking session...');
+    console.log('Has token:', !!token);
+    console.log('Session active:', hasSession);
+
+    if (hasSession && token && !user) {
+      console.log('♻️ Restoring user session...');
+      dispatch(getMe()).catch((error) => {
+        console.error('❌ Failed to restore session:', error);
+        // Don't clear session here - let the API interceptor handle it
+      });
+    } else if (!hasSession) {
+      console.log('ℹ️ No active session found');
+    } else if (user) {
+      console.log('✅ User already authenticated:', user.name);
     }
-  }, [dispatch]);
+  }, [dispatch]); // ✅ ONLY run once on mount, not when user changes
 
+  /**
+   * ✅ Mark session as active when user is authenticated
+   * This helps track user activity
+   */
   useEffect(() => {
     if (user) {
       sessionManager.markActive();
-      console.log('✅ User authenticated:', user.name);
+      console.log('✅ User authenticated:', user.name || user.email);
     } else {
-      console.log('❌ No user authenticated');
+      console.log('ℹ️ No user authenticated');
     }
   }, [user]);
 
@@ -51,12 +76,14 @@ function AppContent() {
           <NotificationToast />
 
           <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
             <Route path="/gigs" element={<GigList />} />
             <Route path="/gigs/:id" element={<GigDetail />} />
 
+            {/* Protected Routes */}
             <Route
               path="/post-gig"
               element={
@@ -99,6 +126,9 @@ function AppContent() {
   );
 }
 
+/**
+ * Main App component with Router wrapper
+ */
 function App() {
   return (
     <Router>
