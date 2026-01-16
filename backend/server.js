@@ -1,4 +1,4 @@
-// server.js - Complete Production-Ready Configuration
+// server.js - Node 22 Compatible Version
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
@@ -16,15 +16,15 @@ const server = http.createServer(app);
 app.set('trust proxy', 1);
 
 // =======================
-// ALLOWED ORIGINS (DEV + PROD)
+// ALLOWED ORIGINS
 // =======================
 const allowedOrigins = [
-  process.env.CLIENT_URL,        // Netlify/Vercel Production
-  'http://localhost:5173',       // Local Vite dev
-  'http://localhost:3000',       // Local React dev
-  'http://localhost:5174',       // Backup Vite port
-  'https://gigflow-platform-ms7295.netlify.app', // Explicit Netlify URL
-].filter(Boolean); // Remove undefined values
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5174',
+  'https://gigflow-platform-ms7295.netlify.app',
+].filter(Boolean);
 
 console.log('✅ Allowed origins:', allowedOrigins);
 
@@ -44,63 +44,53 @@ const io = new Server(server, {
 });
 
 // =======================
-// GLOBAL MIDDLEWARE
+// CORS MIDDLEWARE - Node 22 Compatible
 // =======================
-
-// ✅ CORRECT CORS SETUP
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, server-to-server)
     if (!origin) {
       console.log('✅ CORS: Allowing request with no origin');
       return callback(null, true);
     }
-
     if (allowedOrigins.includes(origin)) {
       console.log('✅ CORS: Allowing request from:', origin);
       return callback(null, true);
     }
-
     console.log('❌ CORS: Blocking request from:', origin);
-    console.log('Allowed origins:', allowedOrigins);
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   exposedHeaders: ['set-cookie'],
-  maxAge: 86400, // Cache preflight for 24 hours
+  maxAge: 86400,
   preflightContinue: false,
   optionsSuccessStatus: 204
 };
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
 
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
+// ❌ REMOVED - This line causes the error in Node 22
+// app.options('*', cors(corsOptions));
 
-// Body parser - MUST be before routes
+// Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Cookie parser - MUST be before routes
+// Cookie parser
 app.use(cookieParser());
 
 // Request logger
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.path}`);
-  console.log('Origin:', req.headers.origin);
-  console.log('Cookies:', req.cookies);
   next();
 });
 
 // =======================
 // Database connection
 // =======================
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ MongoDB connected successfully');
     console.log('📊 Database:', mongoose.connection.name);
@@ -110,7 +100,6 @@ mongoose.connect(process.env.MONGODB_URI, {
     process.exit(1);
   });
 
-// Handle MongoDB connection events
 mongoose.connection.on('error', (err) => {
   console.error('❌ MongoDB error:', err);
 });
@@ -128,14 +117,11 @@ io.on('connection', (socket) => {
   console.log('✅ User connected:', socket.id);
 
   socket.on('join', (userId) => {
-    if (!userId) {
-      console.log('⚠️ Join attempted without userId');
-      return;
-    }
+    if (!userId) return;
     socket.join(userId);
     connectedUsers.set(userId, socket.id);
-    console.log(`✅ User ${userId} joined room with socket ${socket.id}`);
-    console.log(`📊 Total connected users: ${connectedUsers.size}`);
+    console.log(`✅ User ${userId} joined room`);
+    console.log(`📊 Total users: ${connectedUsers.size}`);
   });
 
   socket.on('disconnect', () => {
@@ -146,8 +132,6 @@ io.on('connection', (socket) => {
         break;
       }
     }
-    console.log('❌ User disconnected:', socket.id);
-    console.log(`📊 Remaining connected users: ${connectedUsers.size}`);
   });
 
   socket.on('error', (error) => {
@@ -155,7 +139,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io and connectedUsers accessible to routes
 app.set('io', io);
 app.set('connectedUsers', connectedUsers);
 
@@ -173,24 +156,21 @@ app.get('/', (req, res) => {
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     endpoints: {
       test: '/api/test',
-      auth: '/api/auth (register, login, logout, me)',
+      auth: '/api/auth',
       gigs: '/api/gigs',
       bids: '/api/bids',
-      health: '/health',
-      debug: '/api/debug/cookies'
+      health: '/health'
     }
   });
 });
 
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
     uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    connectedUsers: connectedUsers.size,
-    environment: process.env.NODE_ENV
+    connectedUsers: connectedUsers.size
   });
 });
 
@@ -198,23 +178,8 @@ app.get('/health', (req, res) => {
 app.get('/api/test', (req, res) => {
   res.json({
     message: 'Server is running!',
-    connectedUsers: connectedUsers.size,
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    timestamp: new Date().toISOString(),
-    origin: req.headers.origin,
-    cookies: req.cookies
-  });
-});
-
-// Debug cookies endpoint
-app.get('/api/debug/cookies', (req, res) => {
-  res.json({
-    cookies: req.cookies,
-    rawCookieHeader: req.headers.cookie,
-    hasToken: !!req.cookies.token,
-    authorization: req.headers.authorization,
-    origin: req.headers.origin,
-    allHeaders: req.headers
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -227,33 +192,25 @@ app.use('/api/bids', require('./routes/bids'));
 // 404 HANDLER
 // =======================
 app.use((req, res) => {
-  console.log('❌ 404 - Route not found:', req.method, req.originalUrl);
   res.status(404).json({
     message: 'Route not found',
-    requestedPath: req.originalUrl,
-    method: req.method,
-    timestamp: new Date().toISOString()
+    path: req.originalUrl
   });
 });
 
 // =======================
-// GLOBAL ERROR HANDLER
+// ERROR HANDLER
 // =======================
 app.use((err, req, res, next) => {
-  console.error('❌ Global Error Handler:', err.message);
-  console.error('Stack:', err.stack);
+  console.error('❌ Error:', err.message);
   
-  // Handle CORS errors
   if (err.message && err.message.includes('CORS blocked')) {
     return res.status(403).json({
       message: 'CORS policy violation',
-      error: err.message,
-      origin: req.headers.origin,
-      allowedOrigins: allowedOrigins
+      error: err.message
     });
   }
 
-  // Handle validation errors
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       message: 'Validation Error',
@@ -261,37 +218,21 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // Handle JWT errors
   if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
     return res.status(401).json({
-      message: 'Invalid or expired token',
-      error: err.message
+      message: 'Invalid or expired token'
     });
   }
 
-  // Handle MongoDB errors
-  if (err.name === 'MongoError' || err.name === 'MongoServerError') {
-    return res.status(500).json({
-      message: 'Database error',
-      error: process.env.NODE_ENV === 'production' ? 'Database operation failed' : err.message
-    });
-  }
-
-  // Handle CastError (invalid MongoDB ObjectId)
   if (err.name === 'CastError') {
     return res.status(400).json({
-      message: 'Invalid ID format',
-      error: process.env.NODE_ENV === 'production' ? 'Invalid resource ID' : err.message
+      message: 'Invalid ID format'
     });
   }
   
-  // Generic error response
   res.status(err.status || 500).json({
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'production'
-      ? 'Internal server error'
-      : err.message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message
   });
 });
 
@@ -299,35 +240,18 @@ app.use((err, req, res, next) => {
 // GRACEFUL SHUTDOWN
 // =======================
 const shutdown = (signal) => {
-  console.log(`\n👋 ${signal} received. Shutting down gracefully...`);
+  console.log(`\n👋 ${signal} - Shutting down...`);
   server.close(() => {
-    console.log('🔴 Server closed');
     mongoose.connection.close(false, () => {
-      console.log('🔴 MongoDB connection closed');
+      console.log('🔴 Server closed');
       process.exit(0);
     });
   });
-
-  // Force shutdown after 10 seconds
-  setTimeout(() => {
-    console.error('⚠️ Forcing shutdown after timeout');
-    process.exit(1);
-  }, 10000);
+  setTimeout(() => process.exit(1), 10000);
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
-  shutdown('UNCAUGHT_EXCEPTION');
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-  shutdown('UNHANDLED_REJECTION');
-});
 
 // =======================
 // SERVER START
@@ -335,14 +259,11 @@ process.on('unhandledRejection', (reason, promise) => {
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log('='.repeat(50));
-  console.log(`🚀 GigFlow Backend Server Started`);
+  console.log('🚀 GigFlow Backend Server Started');
   console.log('='.repeat(50));
-  console.log(`📡 Server running on port: ${PORT}`);
-  console.log(`🔌 Socket.io ready for connections`);
+  console.log(`📡 Port: ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✅ Allowed origins:`, allowedOrigins);
   console.log(`🗄️  MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Connecting...'}`);
-  console.log(`🔐 Trust proxy: ${app.get('trust proxy')}`);
   console.log('='.repeat(50));
 });
 
