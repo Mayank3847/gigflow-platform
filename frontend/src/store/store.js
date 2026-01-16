@@ -1,56 +1,25 @@
-// src/store/store.js - ABSOLUTE FINAL VERSION
 import { configureStore } from '@reduxjs/toolkit';
-
-// ============================================
-// Import reducers - CHECK YOUR ACTUAL PATH!
-// ============================================
-// If your files are in src/redux/slices/, change './slices/' to '../redux/slices/'
-// If your files are in src/store/slices/, use './slices/'
-
-// ✅ TRY THIS PATH FIRST (most common):
 import authReducer from './slices/authSlice';
 import gigReducer from './slices/gigSlice';
 import bidReducer from './slices/bidSlice';
 import notificationReducer from './slices/notificationSlice';
 
-// ❌ IF ABOVE DOESN'T WORK, COMMENT IT OUT AND TRY THIS:
-// import authReducer from '../redux/slices/authSlice';
-// import gigReducer from '../redux/slices/gigSlice';
-// import bidReducer from '../redux/slices/bidSlice';
-// import notificationReducer from '../redux/slices/notificationSlice';
+// Validate that all reducers are functions
+const validateReducer = (reducer, name) => {
+  if (typeof reducer !== 'function') {
+    console.error(`❌ CRITICAL: ${name} is not a function!`);
+    throw new Error(`${name} must be a reducer function`);
+  }
+  return reducer;
+};
 
-// ============================================
-// VALIDATE IMPORTS
-// ============================================
-console.log('🔍 Validating reducers...');
-console.log('authReducer type:', typeof authReducer);
-console.log('gigReducer type:', typeof gigReducer);
-console.log('bidReducer type:', typeof bidReducer);
-console.log('notificationReducer type:', typeof notificationReducer);
-
-// Check if any are undefined
-if (typeof authReducer !== 'function') {
-  console.error('❌ CRITICAL: authReducer is not a function! Check import path.');
-}
-if (typeof gigReducer !== 'function') {
-  console.error('❌ CRITICAL: gigReducer is not a function! Check import path.');
-}
-if (typeof bidReducer !== 'function') {
-  console.error('❌ CRITICAL: bidReducer is not a function! Check import path.');
-}
-if (typeof notificationReducer !== 'function') {
-  console.error('❌ CRITICAL: notificationReducer is not a function! Check import path.');
-}
-
-// ============================================
-// CREATE STORE
-// ============================================
+// Create store with validated reducers
 export const store = configureStore({
   reducer: {
-    auth: authReducer,
-    gigs: gigReducer,
-    bids: bidReducer,
-    notifications: notificationReducer,
+    auth: validateReducer(authReducer, 'authReducer'),
+    gigs: validateReducer(gigReducer, 'gigReducer'),
+    bids: validateReducer(bidReducer, 'bidReducer'),
+    notifications: validateReducer(notificationReducer, 'notificationReducer'),
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -63,95 +32,47 @@ export const store = configureStore({
         ignoredPaths: ['socket.connection'],
       },
     }),
-  devTools: true,
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
-// ============================================
-// VALIDATE INITIAL STATE
-// ============================================
-try {
-  const initialState = store.getState();
-  console.log('✅ Redux store created successfully');
-  console.log('📊 Initial state:', initialState);
+// Log initial state only in development
+if (process.env.NODE_ENV === 'development') {
+  try {
+    const initialState = store.getState();
+    console.log('✅ Redux store created successfully');
+    console.log('📊 Initial state structure:', {
+      auth: initialState.auth ? '✓' : '✗',
+      gigs: initialState.gigs ? '✓' : '✗',
+      bids: initialState.bids ? '✓' : '✗',
+      notifications: initialState.notifications ? '✓' : '✗',
+    });
 
-  // Validate each slice
-  if (!initialState.auth) {
-    console.error('❌ CRITICAL: auth state is undefined!');
-  } else {
-    console.log('✅ auth state initialized:', Object.keys(initialState.auth));
-  }
+    // Validate arrays exist
+    const validations = [
+      { path: 'gigs.gigs', value: initialState.gigs?.gigs },
+      { path: 'gigs.myGigs', value: initialState.gigs?.myGigs },
+      { path: 'bids.bids', value: initialState.bids?.bids },
+      { path: 'bids.myBids', value: initialState.bids?.myBids },
+      { path: 'notifications.notifications', value: initialState.notifications?.notifications },
+    ];
 
-  if (!initialState.gigs) {
-    console.error('❌ CRITICAL: gigs state is undefined!');
-  } else {
-    console.log('✅ gigs state initialized:', Object.keys(initialState.gigs));
-  }
-
-  if (!initialState.bids) {
-    console.error('❌ CRITICAL: bids state is undefined!');
-  } else {
-    console.log('✅ bids state initialized:', Object.keys(initialState.bids));
-  }
-
-  if (!initialState.notifications) {
-    console.error('❌ CRITICAL: notifications state is undefined!');
-  } else {
-    console.log('✅ notifications state initialized:', Object.keys(initialState.notifications));
-  }
-
-  // Validate arrays
-  if (!Array.isArray(initialState.gigs?.gigs)) {
-    console.error('❌ state.gigs.gigs is not an array!');
-  }
-  if (!Array.isArray(initialState.gigs?.myGigs)) {
-    console.error('❌ state.gigs.myGigs is not an array!');
-  }
-  if (!Array.isArray(initialState.bids?.bids)) {
-    console.error('❌ state.bids.bids is not an array!');
-  }
-  if (!Array.isArray(initialState.bids?.myBids)) {
-    console.error('❌ state.bids.myBids is not an array!');
-  }
-  if (!Array.isArray(initialState.notifications?.notifications)) {
-    console.error('❌ state.notifications.notifications is not an array!');
+    validations.forEach(({ path, value }) => {
+      if (!Array.isArray(value)) {
+        console.error(`❌ state.${path} is not an array:`, value);
+      } else {
+        console.log(`✅ state.${path} initialized (${value.length} items)`);
+      }
+    });
+  } catch (error) {
+    console.error('❌ CRITICAL ERROR creating store:', error);
   }
 
-} catch (error) {
-  console.error('❌ CRITICAL ERROR creating store:', error);
+  // Expose to window for debugging
+  if (typeof window !== 'undefined') {
+    window.store = store;
+    window.getReduxState = () => store.getState();
+    console.log('✅ Debug: window.store and window.getReduxState() available');
+  }
 }
-
-// ============================================
-// EXPOSE TO WINDOW
-// ============================================
-if (typeof window !== 'undefined') {
-  window.store = store;
-  window.getReduxState = () => store.getState();
-  console.log('✅ Redux store exposed on window.store');
-  console.log('✅ window.getReduxState() available');
-}
-
-// ============================================
-// STATE CHANGE MONITORING
-// ============================================
-store.subscribe(() => {
-  const state = store.getState();
-  
-  // Validate on every change
-  if (!Array.isArray(state.gigs?.gigs)) {
-    console.error('❌ RUNTIME ERROR: gigs.gigs became non-array!', state.gigs?.gigs);
-  }
-  if (!Array.isArray(state.gigs?.myGigs)) {
-    console.error('❌ RUNTIME ERROR: gigs.myGigs became non-array!', state.gigs?.myGigs);
-  }
-  if (!Array.isArray(state.bids?.bids)) {
-    console.error('❌ RUNTIME ERROR: bids.bids became non-array!', state.bids?.bids);
-  }
-  if (!Array.isArray(state.bids?.myBids)) {
-    console.error('❌ RUNTIME ERROR: bids.myBids became non-array!', state.bids?.myBids);
-  }
-  if (!Array.isArray(state.notifications?.notifications)) {
-    console.error('❌ RUNTIME ERROR: notifications.notifications became non-array!', state.notifications?.notifications);
-  }
-});
 
 export default store;

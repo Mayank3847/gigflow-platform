@@ -23,6 +23,7 @@ const allowedOrigins = [
   'http://localhost:5173',       // Local Vite dev
   'http://localhost:3000',       // Local React dev
   'http://localhost:5174',       // Backup Vite port
+  'https://gigflow-platform-ms7295.netlify.app', // Explicit Netlify URL
 ].filter(Boolean); // Remove undefined values
 
 console.log('✅ Allowed origins:', allowedOrigins);
@@ -36,20 +37,22 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
     credentials: true
   },
-  transports: ['websocket', 'polling'], // Support both transports
-  allowEIO3: true // Support older clients
+  transports: ['websocket', 'polling'],
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // =======================
 // GLOBAL MIDDLEWARE
 // =======================
 
-// ✅ CORRECT CORS SETUP (handles preflight automatically)
+// ✅ CORRECT CORS SETUP
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow non-browser clients (Postman, server-to-server, mobile apps)
+    // Allow requests with no origin (mobile apps, Postman, server-to-server)
     if (!origin) {
-      console.log('✅ CORS: Allowing request with no origin (non-browser client)');
+      console.log('✅ CORS: Allowing request with no origin');
       return callback(null, true);
     }
 
@@ -59,38 +62,52 @@ const corsOptions = {
     }
 
     console.log('❌ CORS: Blocking request from:', origin);
+    console.log('Allowed origins:', allowedOrigins);
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
-  credentials: true, // CRITICAL: Allow cookies to be sent
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['set-cookie']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['set-cookie'],
+  maxAge: 86400, // Cache preflight for 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
 
-// ❌ REMOVED - causes issues with Node 22
-// app.options('*', cors());
-// The cors() middleware above already handles OPTIONS requests
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
-// Body parser - Parse JSON bodies
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parser - MUST be before routes
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Cookie parser MUST be before routes - CRITICAL for authentication
+// Cookie parser - MUST be before routes
 app.use(cookieParser());
+
+// Request logger
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.path}`);
+  console.log('Origin:', req.headers.origin);
+  console.log('Cookies:', req.cookies);
+  next();
+});
 
 // =======================
 // Database connection
 // =======================
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
   .then(() => {
     console.log('✅ MongoDB connected successfully');
     console.log('📊 Database:', mongoose.connection.name);
   })
   .catch((err) => {
     console.error('❌ MongoDB connection error:', err);
-    process.exit(1); // Exit if DB connection fails
+    process.exit(1);
   });
 
 // Handle MongoDB connection events
@@ -110,15 +127,17 @@ const connectedUsers = new Map();
 io.on('connection', (socket) => {
   console.log('✅ User connected:', socket.id);
 
-  // Join user-specific room
   socket.on('join', (userId) => {
+    if (!userId) {
+      console.log('⚠️ Join attempted without userId');
+      return;
+    }
     socket.join(userId);
     connectedUsers.set(userId, socket.id);
     console.log(`✅ User ${userId} joined room with socket ${socket.id}`);
     console.log(`📊 Total connected users: ${connectedUsers.size}`);
   });
 
-  // Handle disconnection
   socket.on('disconnect', () => {
     for (let [userId, socketId] of connectedUsers.entries()) {
       if (socketId === socket.id) {
@@ -131,7 +150,6 @@ io.on('connection', (socket) => {
     console.log(`📊 Remaining connected users: ${connectedUsers.size}`);
   });
 
-  // Handle errors
   socket.on('error', (error) => {
     console.error('❌ Socket error:', error);
   });
@@ -152,6 +170,7 @@ app.get('/', (req, res) => {
     status: 'success',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     endpoints: {
       test: '/api/test',
       auth: '/api/auth (register, login, logout, me)',
@@ -170,7 +189,8 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    connectedUsers: connectedUsers.size
+    connectedUsers: connectedUsers.size,
+    environment: process.env.NODE_ENV
   });
 });
 
@@ -180,7 +200,9 @@ app.get('/api/test', (req, res) => {
     message: 'Server is running!',
     connectedUsers: connectedUsers.size,
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    cookies: req.cookies
   });
 });
 
@@ -190,6 +212,8 @@ app.get('/api/debug/cookies', (req, res) => {
     cookies: req.cookies,
     rawCookieHeader: req.headers.cookie,
     hasToken: !!req.cookies.token,
+    authorization: req.headers.authorization,
+    origin: req.headers.origin,
     allHeaders: req.headers
   });
 });
@@ -200,7 +224,7 @@ app.use('/api/gigs', require('./routes/gigs'));
 app.use('/api/bids', require('./routes/bids'));
 
 // =======================
-// 404 HANDLER (Node 22 safe)
+// 404 HANDLER
 // =======================
 app.use((req, res) => {
   console.log('❌ 404 - Route not found:', req.method, req.originalUrl);
@@ -219,12 +243,13 @@ app.use((err, req, res, next) => {
   console.error('❌ Global Error Handler:', err.message);
   console.error('Stack:', err.stack);
   
-  // Handle CORS errors specifically
+  // Handle CORS errors
   if (err.message && err.message.includes('CORS blocked')) {
     return res.status(403).json({
       message: 'CORS policy violation',
       error: err.message,
-      origin: req.headers.origin
+      origin: req.headers.origin,
+      allowedOrigins: allowedOrigins
     });
   }
 
@@ -237,9 +262,9 @@ app.use((err, req, res, next) => {
   }
 
   // Handle JWT errors
-  if (err.name === 'JsonWebTokenError') {
+  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
     return res.status(401).json({
-      message: 'Invalid token',
+      message: 'Invalid or expired token',
       error: err.message
     });
   }
@@ -249,6 +274,14 @@ app.use((err, req, res, next) => {
     return res.status(500).json({
       message: 'Database error',
       error: process.env.NODE_ENV === 'production' ? 'Database operation failed' : err.message
+    });
+  }
+
+  // Handle CastError (invalid MongoDB ObjectId)
+  if (err.name === 'CastError') {
+    return res.status(400).json({
+      message: 'Invalid ID format',
+      error: process.env.NODE_ENV === 'production' ? 'Invalid resource ID' : err.message
     });
   }
   
@@ -265,8 +298,8 @@ app.use((err, req, res, next) => {
 // =======================
 // GRACEFUL SHUTDOWN
 // =======================
-process.on('SIGTERM', () => {
-  console.log('👋 SIGTERM received. Shutting down gracefully...');
+const shutdown = (signal) => {
+  console.log(`\n👋 ${signal} received. Shutting down gracefully...`);
   server.close(() => {
     console.log('🔴 Server closed');
     mongoose.connection.close(false, () => {
@@ -274,17 +307,26 @@ process.on('SIGTERM', () => {
       process.exit(0);
     });
   });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    console.error('⚠️ Forcing shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  shutdown('UNCAUGHT_EXCEPTION');
 });
 
-process.on('SIGINT', () => {
-  console.log('👋 SIGINT received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('🔴 Server closed');
-    mongoose.connection.close(false, () => {
-      console.log('🔴 MongoDB connection closed');
-      process.exit(0);
-    });
-  });
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  shutdown('UNHANDLED_REJECTION');
 });
 
 // =======================
@@ -300,6 +342,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`✅ Allowed origins:`, allowedOrigins);
   console.log(`🗄️  MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Connecting...'}`);
+  console.log(`🔐 Trust proxy: ${app.get('trust proxy')}`);
   console.log('='.repeat(50));
 });
 
