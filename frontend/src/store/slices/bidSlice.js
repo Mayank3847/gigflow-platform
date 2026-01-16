@@ -1,10 +1,5 @@
-// src/redux/slices/bidSlice.js - FINAL FIXED VERSION
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from './authSlice'; // ✅ USE SAME AUTHENTICATED AXIOS INSTANCE
-
-// ============================================
-// Async Thunks
-// ============================================
+import { api } from './authSlice';
 
 export const createBid = createAsyncThunk(
   'bids/create',
@@ -13,14 +8,10 @@ export const createBid = createAsyncThunk(
       console.log('🚀 Sending bid to API:', bidData);
       const response = await api.post('/api/bids', bidData);
       console.log('✅ API response:', response.data);
-      
-      // ✅ DEFENSIVE: Handle response
       return response.data || {};
     } catch (error) {
       console.log('❌ API error:', error.response?.data);
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to create bid'
-      );
+      return rejectWithValue(error.response?.data?.message || 'Failed to create bid');
     }
   }
 );
@@ -30,16 +21,10 @@ export const fetchBidsByGig = createAsyncThunk(
   async (gigId, { rejectWithValue }) => {
     try {
       const response = await api.get(`/api/bids/${gigId}`);
-      
-      // ✅ DEFENSIVE: Ensure we always return an array
-      const bids = Array.isArray(response.data) ? response.data : 
-                   Array.isArray(response.data?.bids) ? response.data.bids : [];
-      
+      const bids = Array.isArray(response.data) ? response.data : Array.isArray(response.data?.bids) ? response.data.bids : [];
       return bids;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to fetch bids'
-      );
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch bids');
     }
   }
 );
@@ -49,16 +34,10 @@ export const fetchMyBids = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get('/api/bids/my/bids');
-      
-      // ✅ DEFENSIVE: Ensure we always return an array
-      const bids = Array.isArray(response.data) ? response.data : 
-                   Array.isArray(response.data?.bids) ? response.data.bids : [];
-      
+      const bids = Array.isArray(response.data) ? response.data : Array.isArray(response.data?.bids) ? response.data.bids : [];
       return bids;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to fetch bids'
-      );
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch bids');
     }
   }
 );
@@ -73,9 +52,7 @@ export const hireBid = createAsyncThunk(
       return response.data || {};
     } catch (error) {
       console.log('❌ Hire error:', error.response?.data);
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to hire freelancer'
-      );
+      return rejectWithValue(error.response?.data?.message || 'Failed to hire freelancer');
     }
   }
 );
@@ -90,9 +67,7 @@ export const rejectBid = createAsyncThunk(
       return response.data || {};
     } catch (error) {
       console.log('❌ Reject error:', error.response?.data);
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to reject bid'
-      );
+      return rejectWithValue(error.response?.data?.message || 'Failed to reject bid');
     }
   }
 );
@@ -110,16 +85,10 @@ export const updateBid = createAsyncThunk(
       return response.data || {};
     } catch (error) {
       console.log('❌ Update error:', error.response?.data);
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to update bid'
-      );
+      return rejectWithValue(error.response?.data?.message || 'Failed to update bid');
     }
   }
 );
-
-// ============================================
-// Slice
-// ============================================
 
 const bidSlice = createSlice({
   name: 'bids',
@@ -149,9 +118,6 @@ const bidSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // ===============================
-      // CREATE BID
-      // ===============================
       .addCase(createBid.pending, (state) => {
         console.log('⏳ Bid creation pending...');
         state.isLoading = true;
@@ -165,8 +131,6 @@ const bidSlice = createSlice({
         state.isSuccess = true;
         state.isError = false;
         state.message = 'Bid submitted successfully!';
-        
-        // ✅ DEFENSIVE: Only add if valid bid
         if (action.payload && action.payload._id) {
           state.myBids.unshift(action.payload);
         }
@@ -178,17 +142,12 @@ const bidSlice = createSlice({
         state.isSuccess = false;
         state.message = action.payload || 'Failed to create bid';
       })
-
-      // ===============================
-      // FETCH BIDS BY GIG
-      // ===============================
       .addCase(fetchBidsByGig.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
       })
       .addCase(fetchBidsByGig.fulfilled, (state, action) => {
         state.isLoading = false;
-        // ✅ DEFENSIVE: Ensure array
         state.bids = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(fetchBidsByGig.rejected, (state, action) => {
@@ -197,17 +156,12 @@ const bidSlice = createSlice({
         state.message = action.payload || 'Failed to fetch bids';
         state.bids = [];
       })
-
-      // ===============================
-      // FETCH MY BIDS
-      // ===============================
       .addCase(fetchMyBids.pending, (state) => {
         state.isLoading = true;
         state.isError = false;
       })
       .addCase(fetchMyBids.fulfilled, (state, action) => {
         state.isLoading = false;
-        // ✅ DEFENSIVE: Ensure array
         state.myBids = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(fetchMyBids.rejected, (state, action) => {
@@ -216,10 +170,6 @@ const bidSlice = createSlice({
         state.message = action.payload || 'Failed to fetch my bids';
         state.myBids = [];
       })
-
-      // ===============================
-      // HIRE BID
-      // ===============================
       .addCase(hireBid.pending, (state) => {
         console.log('⏳ Hiring pending...');
         state.isLoading = true;
@@ -239,10 +189,6 @@ const bidSlice = createSlice({
         state.isError = true;
         state.message = action.payload || 'Failed to hire';
       })
-
-      // ===============================
-      // REJECT BID
-      // ===============================
       .addCase(rejectBid.pending, (state) => {
         console.log('⏳ Rejecting bid...');
         state.isLoading = true;
@@ -261,10 +207,6 @@ const bidSlice = createSlice({
         state.isError = true;
         state.message = action.payload || 'Failed to reject bid';
       })
-
-      // ===============================
-      // UPDATE BID
-      // ===============================
       .addCase(updateBid.pending, (state) => {
         console.log('⏳ Updating bid...');
         state.isLoading = true;
@@ -276,14 +218,9 @@ const bidSlice = createSlice({
         state.isLoading = false;
         state.isSuccess = true;
         state.message = 'Bid updated successfully!';
-        
-        // ✅ DEFENSIVE: Check payload structure
         const updatedBid = action.payload?.bid || action.payload;
-        
         if (updatedBid && updatedBid._id) {
-          const index = state.myBids.findIndex(
-            (bid) => bid._id === updatedBid._id
-          );
+          const index = state.myBids.findIndex((bid) => bid._id === updatedBid._id);
           if (index !== -1) {
             state.myBids[index] = updatedBid;
           }
