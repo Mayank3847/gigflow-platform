@@ -1,8 +1,7 @@
-// src/pages/MyBids.jsx - FINAL FIXED VERSION
 import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { fetchMyBids, updateBid, reset } from '../store/slices/bidSlice';
-import { useToast } from '../context/ToastContext';
 import {
   DollarSign,
   Calendar,
@@ -19,36 +18,30 @@ import {
 const MyBids = () => {
   const dispatch = useDispatch();
   
-  // ✅ DEFENSIVE: Provide default values
-  const { 
-    myBids = [], 
-    isSuccess = false, 
-    isError = false, 
-    message = '',
-    isLoading = false
-  } = useSelector((state) => state.bids || {});
+  const { myBids, bidsLoading } = useSafeSelector();
   
   const [editingBid, setEditingBid] = useState(null);
   const [editForm, setEditForm] = useState({ price: '', message: '' });
-  const { success, error, warning } = useToast();
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     dispatch(fetchMyBids());
   }, [dispatch]);
 
   useEffect(() => {
-    if (isSuccess && message) {
-      success(message);
-      dispatch(reset());
+    if (successMessage) {
+      alert(successMessage);
+      setSuccessMessage('');
       setEditingBid(null);
       dispatch(fetchMyBids());
     }
 
-    if (isError && message) {
-      error(message);
-      dispatch(reset());
+    if (errorMessage) {
+      alert(errorMessage);
+      setErrorMessage('');
     }
-  }, [isSuccess, isError, message, dispatch, success, error]);
+  }, [successMessage, errorMessage, dispatch]);
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
@@ -100,22 +93,28 @@ const MyBids = () => {
     setEditForm({ price: '', message: '' });
   };
 
-  const handleUpdateSubmit = (bidId) => {
+  const handleUpdateSubmit = async (bidId) => {
     if (!editForm.price || !editForm.message) {
-      warning('Please fill in all fields');
+      alert('Please fill in all fields');
       return;
     }
 
     if (editForm.price <= 0) {
-      warning('Price must be greater than 0');
+      alert('Price must be greater than 0');
       return;
     }
 
-    dispatch(updateBid({
-      bidId,
-      price: parseFloat(editForm.price),
-      message: editForm.message
-    }));
+    try {
+      await dispatch(updateBid({
+        bidId,
+        price: parseFloat(editForm.price),
+        message: editForm.message
+      })).unwrap();
+      
+      setSuccessMessage('Bid updated successfully!');
+    } catch (error) {
+      setErrorMessage(error || 'Failed to update bid');
+    }
   };
 
   const canEditBid = (bid) => {
@@ -123,17 +122,7 @@ const MyBids = () => {
       (bid?.status === 'pending' || bid?.status === 'rejected');
   };
 
-  // ✅ DEFENSIVE: Check if myBids is array
-  if (!Array.isArray(myBids)) {
-    console.error('❌ myBids is not an array:', myBids);
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-red-500">Error loading bids. Please refresh the page.</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
+  if (bidsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader className="animate-spin w-10 h-10 text-blue-600" />
@@ -157,7 +146,6 @@ const MyBids = () => {
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
             {myBids.map((bid) => {
-              // ✅ DEFENSIVE: Check if bid exists
               if (!bid || !bid._id) {
                 console.warn('⚠️ Invalid bid:', bid);
                 return null;

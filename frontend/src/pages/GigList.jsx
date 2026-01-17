@@ -1,6 +1,6 @@
-// src/pages/GigList.jsx - FINAL COMPLETE VERSION
 import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { getAllGigs } from '../store/slices/gigSlice';
 import { Link } from 'react-router-dom';
 import { Search, DollarSign, Calendar, Filter } from 'lucide-react';
@@ -10,20 +10,14 @@ const GigList = () => {
   const [showOnlyOpen, setShowOnlyOpen] = useState(true);
   const dispatch = useDispatch();
   
-  // ✅ DEFENSIVE: Provide default values
-  const { 
-    gigs = [], 
-    isLoading = false 
-  } = useSelector((state) => state.gigs || {});
+  const { gigs, gigsLoading } = useSafeSelector();
 
   useEffect(() => {
-    // ✅ FIXED: Correct thunk call
     dispatch(getAllGigs());
   }, [dispatch]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // ✅ FIXED: Thunk expects an object
     dispatch(getAllGigs({ search: searchTerm }));
   };
 
@@ -41,12 +35,9 @@ const GigList = () => {
     }
   };
 
-  // ✅ DEFENSIVE: Check if gigs is array before filtering
-  const filteredGigs = Array.isArray(gigs)
-    ? (showOnlyOpen 
-        ? gigs.filter(gig => gig?.status === 'open')
-        : gigs)
-    : [];
+  const filteredGigs = showOnlyOpen 
+    ? gigs.filter(gig => gig?.status === 'open')
+    : gigs;
 
   return (
     <div className="min-h-screen bg-gray-50 py-4 xs:py-6 sm:py-8">
@@ -110,7 +101,7 @@ const GigList = () => {
         </div>
 
         {/* Loading State */}
-        {isLoading ? (
+        {gigsLoading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-10 w-10 xs:h-12 xs:w-12 border-b-2 border-blue-600"></div>
           </div>
@@ -135,7 +126,6 @@ const GigList = () => {
               /* Gigs Grid */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 xs:gap-4 sm:gap-6">
                 {filteredGigs.map((gig) => {
-                  // ✅ DEFENSIVE: Check if gig exists and has required fields
                   if (!gig || !gig._id) {
                     console.warn('⚠️ Invalid gig object:', gig);
                     return null;

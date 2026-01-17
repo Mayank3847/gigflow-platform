@@ -4,16 +4,15 @@ import gigReducer from './slices/gigSlice';
 import bidReducer from './slices/bidSlice';
 import notificationReducer from './slices/notificationSlice';
 
-// Validate that all reducers are functions
+// Validate reducers are functions
 const validateReducer = (reducer, name) => {
   if (typeof reducer !== 'function') {
-    console.error(`❌ CRITICAL: ${name} is not a function!`);
     throw new Error(`${name} must be a reducer function`);
   }
   return reducer;
 };
 
-// Create store with validated reducers
+// Create store
 export const store = configureStore({
   reducer: {
     auth: validateReducer(authReducer, 'authReducer'),
@@ -24,55 +23,62 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: [
-          'socket/connect',
-          'socket/disconnect',
-          'notifications/addNotification',
-        ],
+        ignoredActions: ['socket/connect', 'socket/disconnect', 'notifications/addNotification'],
         ignoredPaths: ['socket.connection'],
       },
     }),
   devTools: process.env.NODE_ENV !== 'production',
 });
 
-// Log initial state only in development
-if (process.env.NODE_ENV === 'development') {
+// Validate initial state AFTER store creation
+const validateInitialState = () => {
   try {
-    const initialState = store.getState();
-    console.log('✅ Redux store created successfully');
-    console.log('📊 Initial state structure:', {
-      auth: initialState.auth ? '✓' : '✗',
-      gigs: initialState.gigs ? '✓' : '✗',
-      bids: initialState.bids ? '✓' : '✗',
-      notifications: initialState.notifications ? '✓' : '✗',
+    const state = store.getState();
+    
+    console.log('✅ Redux Store Created');
+    console.log('📊 State Structure:', {
+      auth: !!state.auth,
+      gigs: !!state.gigs,
+      bids: !!state.bids,
+      notifications: !!state.notifications,
     });
 
-    // Validate arrays exist
+    // Validate arrays
     const validations = [
-      { path: 'gigs.gigs', value: initialState.gigs?.gigs },
-      { path: 'gigs.myGigs', value: initialState.gigs?.myGigs },
-      { path: 'bids.bids', value: initialState.bids?.bids },
-      { path: 'bids.myBids', value: initialState.bids?.myBids },
-      { path: 'notifications.notifications', value: initialState.notifications?.notifications },
+      { path: 'gigs.gigs', value: state.gigs?.gigs },
+      { path: 'gigs.myGigs', value: state.gigs?.myGigs },
+      { path: 'bids.bids', value: state.bids?.bids },
+      { path: 'bids.myBids', value: state.bids?.myBids },
+      { path: 'notifications.notifications', value: state.notifications?.notifications },
     ];
 
+    let hasErrors = false;
     validations.forEach(({ path, value }) => {
       if (!Array.isArray(value)) {
-        console.error(`❌ state.${path} is not an array:`, value);
+        console.error(`❌ state.${path} is NOT an array:`, typeof value, value);
+        hasErrors = true;
       } else {
-        console.log(`✅ state.${path} initialized (${value.length} items)`);
+        console.log(`✅ state.${path} is array (${value.length} items)`);
       }
     });
-  } catch (error) {
-    console.error('❌ CRITICAL ERROR creating store:', error);
-  }
 
-  // Expose to window for debugging
-  if (typeof window !== 'undefined') {
-    window.store = store;
-    window.getReduxState = () => store.getState();
-    console.log('✅ Debug: window.store and window.getReduxState() available');
+    if (hasErrors) {
+      console.error('❌ CRITICAL: Store has initialization errors!');
+      console.error('Full state:', state);
+    }
+  } catch (error) {
+    console.error('❌ Error validating store:', error);
   }
+};
+
+// Run validation
+validateInitialState();
+
+// Expose to window for debugging (development only)
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  window.store = store;
+  window.getReduxState = () => store.getState();
+  console.log('🔧 Debug: window.store available');
 }
 
 export default store;

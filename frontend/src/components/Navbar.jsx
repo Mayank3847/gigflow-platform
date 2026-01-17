@@ -1,6 +1,6 @@
-// src/components/Navbar.jsx - FINAL FIXED VERSION
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { logout } from '../store/slices/authSlice';
 import { sessionManager } from '../utils/sessionManager';
 import { Briefcase, LogOut, User, Menu, X } from 'lucide-react';
@@ -9,20 +9,12 @@ import NotificationDropdown from './NotificationDropdown';
 import { useSocket } from '../context/SocketContext';
 
 const Navbar = () => {
-  // ✅ DEFENSIVE: Provide default values
-  const { user = null } = useSelector((state) => state.auth || {});
-  const notifications = useSelector((state) => state.notifications?.notifications) || [];
-  
+  const { user, isAuthenticated, notifications, unreadCount } = useSafeSelector();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { markAllAsRead } = useSocket();
+  const socket = useSocket();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // ✅ DEFENSIVE: Ensure notifications is array before using filter
-  const unreadCount = Array.isArray(notifications) 
-    ? notifications.filter((n) => !n?.read).length 
-    : 0;
 
   const handleLogout = () => {
     sessionManager.clearSession();
@@ -61,7 +53,7 @@ const Navbar = () => {
             </span>
           </Link>
 
-          {user ? (
+          {isAuthenticated ? (
             <>
               {/* Desktop Menu */}
               <div className="hidden xl:flex items-center space-x-1 2xl:space-x-2">
@@ -80,16 +72,17 @@ const Navbar = () => {
                   + Post Gig
                 </Link>
 
-                {/* 🔔 NOTIFICATION DROPDOWN */}
+                {/* Notification Dropdown */}
                 <NotificationDropdown
+                  notifications={notifications}
                   unreadCount={unreadCount}
-                  onMarkAllRead={markAllAsRead}
+                  onMarkAllRead={socket?.markAllAsRead}
                 />
 
                 <div className="flex items-center space-x-2 bg-blue-700 px-4 py-2 rounded-lg">
                   <User size={14} />
                   <span className="text-xs truncate max-w-[100px]">
-                    {user.name || user.email || 'User'}
+                    {user?.name || user?.email || 'User'}
                   </span>
                 </div>
 
@@ -105,8 +98,9 @@ const Navbar = () => {
               {/* Mobile Right */}
               <div className="xl:hidden flex items-center space-x-2">
                 <NotificationDropdown
+                  notifications={notifications}
                   unreadCount={unreadCount}
-                  onMarkAllRead={markAllAsRead}
+                  onMarkAllRead={socket?.markAllAsRead}
                 />
                 <button
                   className="p-2 hover:bg-blue-700 rounded-lg transition"
@@ -152,10 +146,10 @@ const Navbar = () => {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="xl:hidden py-4 space-y-2 border-t border-blue-500">
-            {user ? (
+            {isAuthenticated ? (
               <>
                 <div className="block py-2 text-sm font-semibold border-b border-blue-500 mb-2">
-                  Welcome, {user.name || 'User'}
+                  Welcome, {user?.name || 'User'}
                 </div>
                 <NavLink to="/gigs" onClick={() => setMobileMenuOpen(false)}>
                   Browse Gigs

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { useNavigate, Link } from 'react-router-dom';
 import { register, reset } from '../store/slices/authSlice';
 import { sessionManager } from '../utils/sessionManager';
-import { useToast } from '../context/ToastContext';
 import { UserPlus, Loader } from 'lucide-react';
 
 const Register = () => {
@@ -15,30 +15,27 @@ const Register = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, isLoading, isError, isSuccess, message } = useSelector(
-    (state) => state.auth
-  );
-  const { success, error, warning } = useToast();
+  const { user, authLoading, authError, isAuthenticated, authMessage } = useSafeSelector();
 
   useEffect(() => {
     dispatch(reset());
   }, [dispatch]);
 
   useEffect(() => {
-    if (isSuccess && user) {
+    if (isAuthenticated && user) {
       sessionManager.markActive();
-      success('Account created successfully! Welcome to GigFlow.');
+      alert('Account created successfully! Welcome to GigFlow.');
       navigate('/gigs');
       dispatch(reset());
     }
-  }, [user, isSuccess, navigate, dispatch, success]);
+  }, [user, isAuthenticated, navigate, dispatch]);
 
   useEffect(() => {
-    if (isError) {
-      error(message || 'Registration failed. Please try again.');
+    if (authError) {
+      alert(authMessage || 'Registration failed. Please try again.');
       dispatch(reset());
     }
-  }, [isError, message, dispatch, error]);
+  }, [authError, authMessage, dispatch]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -48,7 +45,7 @@ const Register = () => {
     e.preventDefault();
     
     if (formData.password.length < 6) {
-      warning('Password must be at least 6 characters long.');
+      alert('Password must be at least 6 characters long.');
       return;
     }
     
@@ -73,7 +70,7 @@ const Register = () => {
               onChange={handleChange}
               className="w-full px-3 xs:px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm sm:text-base"
               required
-              disabled={isLoading}
+              disabled={authLoading}
             />
           </div>
 
@@ -86,7 +83,7 @@ const Register = () => {
               onChange={handleChange}
               className="w-full px-3 xs:px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm sm:text-base"
               required
-              disabled={isLoading}
+              disabled={authLoading}
             />
           </div>
 
@@ -100,16 +97,16 @@ const Register = () => {
               className="w-full px-3 xs:px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm sm:text-base"
               required
               minLength={6}
-              disabled={isLoading}
+              disabled={authLoading}
             />
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={authLoading}
             className="w-full bg-blue-600 text-white py-2 xs:py-2.5 rounded hover:bg-blue-700 transition disabled:bg-blue-300 flex items-center justify-center space-x-2 text-xs xs:text-sm sm:text-base"
           >
-            {isLoading ? (
+            {authLoading ? (
               <>
                 <Loader className="animate-spin w-4 h-4 xs:w-[18px] xs:h-[18px]" />
                 <span>Creating Account...</span>

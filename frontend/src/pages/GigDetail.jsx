@@ -1,32 +1,24 @@
-// src/pages/GigDetail.jsx - FINAL FIXED VERSION
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { createBid, reset } from '../store/slices/bidSlice';
-import { useToast } from '../context/ToastContext';
 import axios from 'axios';
 import { DollarSign, Calendar, User, ArrowLeft, Loader } from 'lucide-react';
 
 const GigDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
 
-  // ✅ DEFENSIVE: Provide default values
-  const { user = null } = useSelector((state) => state.auth || {});
-  const { 
-    isLoading = false, 
-    isSuccess = false, 
-    isError = false, 
-    message = '' 
-  } = useSelector((state) => state.bids || {});
-
-  const { success, error, warning } = useToast();
+  const { user } = useSafeSelector();
+  const { bidsLoading, bidsError } = useSafeSelector();
 
   const [gig, setGig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [bidData, setBidData] = useState({ message: '', price: '' });
-  const [hasShownToast, setHasShownToast] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchGig = async () => {
@@ -36,12 +28,11 @@ const GigDetail = () => {
           `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/gigs/${id}`
         );
         
-        // ✅ DEFENSIVE: Check response structure
         const gigData = response.data?.gig || response.data || null;
         setGig(gigData);
       } catch (err) {
         console.error('❌ Error fetching gig:', err);
-        error('Failed to load gig details');
+        alert('Failed to load gig details');
         setGig(null);
       } finally {
         setLoading(false);
@@ -50,43 +41,38 @@ const GigDetail = () => {
 
     fetchGig();
     dispatch(reset());
-    setHasShownToast(false);
-  }, [id, dispatch, error]);
+  }, [id, dispatch]);
 
-  useEffect(() => {
-    if (isSuccess && !hasShownToast) {
-      success('Bid submitted successfully!');
-      setBidData({ message: '', price: '' });
-      setHasShownToast(true);
-      dispatch(reset());
-    }
-
-    if (isError && !hasShownToast) {
-      error(message || 'Failed to submit bid');
-      setHasShownToast(true);
-      dispatch(reset());
-    }
-  }, [isSuccess, isError, message, hasShownToast, dispatch, success, error]);
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setHasShownToast(false);
 
     if (!bidData.message.trim() || !bidData.price) {
-      warning('Please fill in all fields');
+      alert('Please fill in all fields');
       return;
     }
 
     if (parseFloat(bidData.price) <= 0) {
-      warning('Price must be greater than 0');
+      alert('Price must be greater than 0');
       return;
     }
 
-    dispatch(createBid({ 
-      gigId: id, 
-      price: parseFloat(bidData.price),
-      message: bidData.message.trim()
-    }));
+    setSubmitting(true);
+
+    try {
+      await dispatch(createBid({ 
+        gigId: id, 
+        price: parseFloat(bidData.price),
+        message: bidData.message.trim()
+      })).unwrap();
+      
+      alert('Bid submitted successfully!');
+      setBidData({ message: '', price: '' });
+      dispatch(reset());
+    } catch (error) {
+      alert(error || 'Failed to submit bid');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -113,7 +99,6 @@ const GigDetail = () => {
     );
   }
 
-  // ✅ DEFENSIVE: Check if user and gig.ownerId exist before comparison
   const isOwner = user && gig.ownerId && 
                   (gig.ownerId._id === user._id || gig.ownerId === user._id);
 
@@ -170,7 +155,6 @@ const GigDetail = () => {
             </p>
           </div>
 
-          {/* ✅ NON-OWNER BID FORM */}
           {!isOwner && gig.status === 'open' && user && (
             <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
               <h2 className="text-xl font-bold mb-4">Submit Your Bid</h2>
@@ -188,7 +172,7 @@ const GigDetail = () => {
                       setBidData({ ...bidData, price: e.target.value })
                     }
                     className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={isLoading}
+                    disabled={submitting}
                     min="1"
                     step="0.01"
                     required
@@ -206,17 +190,17 @@ const GigDetail = () => {
                       setBidData({ ...bidData, message: e.target.value })
                     }
                     className="w-full border border-gray-300 px-4 py-2 rounded-lg h-32 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={isLoading}
+                    disabled={submitting}
                     required
                   />
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={submitting}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-blue-300 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                 >
-                  {isLoading ? (
+                  {submitting ? (
                     <>
                       <Loader className="animate-spin w-5 h-5" />
                       <span>Submitting...</span>
@@ -229,7 +213,6 @@ const GigDetail = () => {
             </div>
           )}
 
-          {/* ✅ NOT LOGGED IN */}
           {!user && gig.status === 'open' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
               <p className="text-blue-800 mb-4">
@@ -244,7 +227,6 @@ const GigDetail = () => {
             </div>
           )}
 
-          {/* ✅ OWNER MESSAGE */}
           {isOwner && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-blue-800">
               <p className="font-semibold mb-2">This is your gig</p>
@@ -252,7 +234,6 @@ const GigDetail = () => {
             </div>
           )}
 
-          {/* ✅ GIG CLOSED */}
           {gig.status === 'assigned' && !isOwner && (
             <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 text-gray-700 text-center">
               <p className="font-semibold">This gig has already been assigned to a freelancer.</p>

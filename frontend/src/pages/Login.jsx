@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { useNavigate, Link } from 'react-router-dom';
 import { login, reset } from '../store/slices/authSlice';
 import { sessionManager } from '../utils/sessionManager';
-import { useToast } from '../context/ToastContext';
 import { LogIn, Loader } from 'lucide-react';
 
 const Login = () => {
@@ -14,30 +14,27 @@ const Login = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, isLoading, isError, isSuccess, message } = useSelector(
-    (state) => state.auth
-  );
-  const { success, error } = useToast();
+  const { user, authLoading, authError, isAuthenticated, authMessage } = useSafeSelector();
 
   useEffect(() => {
     dispatch(reset());
   }, [dispatch]);
 
   useEffect(() => {
-    if (isSuccess && user) {
+    if (isAuthenticated && user) {
       sessionManager.markActive();
-      success('Welcome back! Login successful.');
+      alert('Login successful! Welcome back.');
       navigate('/gigs');
       dispatch(reset());
     }
-  }, [user, isSuccess, navigate, dispatch, success]);
+  }, [user, isAuthenticated, navigate, dispatch]);
 
   useEffect(() => {
-    if (isError) {
-      error(message || 'Login failed. Please try again.');
+    if (authError) {
+      alert(authMessage || 'Login failed. Please check your credentials.');
       dispatch(reset());
     }
-  }, [isError, message, dispatch, error]);
+  }, [authError, authMessage, dispatch]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -54,7 +51,7 @@ const Login = () => {
         <div className="flex items-center justify-center mb-4 xs:mb-6">
           <LogIn className="text-blue-600 w-8 h-8 xs:w-10 xs:h-10" />
         </div>
-        <h2 className="text-2xl xs:text-3xl font-bold text-center mb-4 xs:mb-6">Welcome Back</h2>
+        <h2 className="text-2xl xs:text-3xl font-bold text-center mb-4 xs:mb-6">Login</h2>
 
         <form onSubmit={handleSubmit} className="space-y-3 xs:space-y-4">
           <div>
@@ -66,7 +63,7 @@ const Login = () => {
               onChange={handleChange}
               className="w-full px-3 xs:px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm sm:text-base"
               required
-              disabled={isLoading}
+              disabled={authLoading}
             />
           </div>
 
@@ -79,16 +76,16 @@ const Login = () => {
               onChange={handleChange}
               className="w-full px-3 xs:px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm sm:text-base"
               required
-              disabled={isLoading}
+              disabled={authLoading}
             />
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={authLoading}
             className="w-full bg-blue-600 text-white py-2 xs:py-2.5 rounded hover:bg-blue-700 transition disabled:bg-blue-300 flex items-center justify-center space-x-2 text-xs xs:text-sm sm:text-base"
           >
-            {isLoading ? (
+            {authLoading ? (
               <>
                 <Loader className="animate-spin w-4 h-4 xs:w-[18px] xs:h-[18px]" />
                 <span>Logging in...</span>

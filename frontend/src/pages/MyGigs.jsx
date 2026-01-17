@@ -1,6 +1,6 @@
-// src/pages/MyGigs.jsx - FINAL FIXED VERSION
 import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { getMyGigs } from '../store/slices/gigSlice';
 import {
   fetchBidsByGig,
@@ -8,68 +8,65 @@ import {
   rejectBid,
   reset,
 } from '../store/slices/bidSlice';
-import { useToast } from '../context/ToastContext';
 import { DollarSign, Calendar, Users, Loader } from 'lucide-react';
 
 const MyGigs = () => {
   const dispatch = useDispatch();
   
-  // ✅ DEFENSIVE: Provide default values
-  const { 
-    myGigs = [], 
-    isLoading: gigsLoading = false 
-  } = useSelector((state) => state.gigs || {});
-  
-  const { 
-    bids = [], 
-    isLoading = false, 
-    isSuccess = false, 
-    isError = false, 
-    message = '' 
-  } = useSelector((state) => state.bids || {});
+  const { myGigs, gigsLoading } = useSafeSelector();
+  const { bids, bidsLoading } = useSafeSelector();
 
   const [selectedGig, setSelectedGig] = useState(null);
-  const { success, error } = useToast();
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     dispatch(getMyGigs());
   }, [dispatch]);
 
   useEffect(() => {
-    if (isSuccess && message) {
-      success(message);
-      dispatch(reset());
+    if (successMessage) {
+      alert(successMessage);
+      setSuccessMessage('');
 
       if (selectedGig) {
         dispatch(fetchBidsByGig(selectedGig));
       }
     }
 
-    if (isError && message) {
-      error(message);
-      dispatch(reset());
+    if (errorMessage) {
+      alert(errorMessage);
+      setErrorMessage('');
     }
-  }, [isSuccess, isError, message, dispatch, selectedGig, success, error]);
+  }, [successMessage, errorMessage, dispatch, selectedGig]);
 
   const handleViewBids = (gigId) => {
     setSelectedGig(gigId);
     dispatch(fetchBidsByGig(gigId));
   };
 
+  const handleHire = async (bidId) => {
+    try {
+      await dispatch(hireBid(bidId)).unwrap();
+      setSuccessMessage('Freelancer hired successfully!');
+    } catch (error) {
+      setErrorMessage(error || 'Failed to hire freelancer');
+    }
+  };
+
+  const handleReject = async (bidId) => {
+    try {
+      await dispatch(rejectBid(bidId)).unwrap();
+      setSuccessMessage('Bid rejected successfully');
+    } catch (error) {
+      setErrorMessage(error || 'Failed to reject bid');
+    }
+  };
+
   if (gigsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader className="animate-spin w-10 h-10 text-blue-600" />
-      </div>
-    );
-  }
-
-  // ✅ DEFENSIVE: Check if myGigs is array
-  if (!Array.isArray(myGigs)) {
-    console.error('❌ myGigs is not an array:', myGigs);
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-red-500">Error loading gigs. Please refresh the page.</p>
       </div>
     );
   }
@@ -88,7 +85,6 @@ const MyGigs = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {myGigs.map((gig) => {
-              // ✅ DEFENSIVE: Check if gig exists
               if (!gig || !gig._id) {
                 console.warn('⚠️ Invalid gig:', gig);
                 return null;
@@ -135,7 +131,7 @@ const MyGigs = () => {
           </div>
         )}
 
-        {/* ✅ BIDS MODAL */}
+        {/* BIDS MODAL */}
         {selectedGig && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
@@ -149,14 +145,10 @@ const MyGigs = () => {
                 </button>
               </div>
 
-              {isLoading ? (
+              {bidsLoading ? (
                 <div className="flex justify-center py-10">
                   <Loader className="animate-spin w-8 h-8 text-blue-600" />
                 </div>
-              ) : !Array.isArray(bids) ? (
-                <p className="text-center text-red-500 py-10">
-                  Error loading bids. Please try again.
-                </p>
               ) : bids.length === 0 ? (
                 <p className="text-center text-gray-500 py-10">
                   No bids yet for this gig.
@@ -164,7 +156,6 @@ const MyGigs = () => {
               ) : (
                 <div className="space-y-4">
                   {bids.map((bid) => {
-                    // ✅ DEFENSIVE: Check if bid exists
                     if (!bid || !bid._id) {
                       console.warn('⚠️ Invalid bid:', bid);
                       return null;
@@ -191,18 +182,17 @@ const MyGigs = () => {
                           </span>
                         </div>
 
-                        {/* ✅ OWNER-ONLY ACTIONS */}
                         {bid.status === 'pending' && (
                           <div className="flex gap-2">
                             <button
-                              onClick={() => dispatch(hireBid(bid._id))}
+                              onClick={() => handleHire(bid._id)}
                               className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition flex-1"
                             >
                               Hire
                             </button>
 
                             <button
-                              onClick={() => dispatch(rejectBid(bid._id))}
+                              onClick={() => handleReject(bid._id)}
                               className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition flex-1"
                             >
                               Reject

@@ -1,14 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { Bell, X, CheckCircle, AlertCircle, Briefcase, Trash2 } from 'lucide-react';
 import { removeNotification, clearNotifications } from '../store/slices/notificationSlice';
 import { useNavigate } from 'react-router-dom';
 
-const NotificationDropdown = () => {
+const NotificationDropdown = ({ onMarkAllRead }) => {
   const [isOpen, setIsOpen] = useState(false);
-const notifications =
-  useSelector((state) => state.notifications?.notifications) || [];
-
+  const { notifications } = useSafeSelector();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -76,6 +75,12 @@ const notifications =
     return `${diffDays}d ago`;
   };
 
+  const handleClearAll = () => {
+    if (window.confirm('Clear all notifications?')) {
+      dispatch(clearNotifications());
+    }
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Bell Icon Button */}
@@ -107,11 +112,7 @@ const notifications =
             </div>
             {notifications.length > 0 && (
               <button
-                onClick={() => {
-                  if (window.confirm('Clear all notifications?')) {
-                    dispatch(clearNotifications());
-                  }
-                }}
+                onClick={handleClearAll}
                 className="hover:bg-blue-800 p-1 xs:p-1.5 rounded transition"
                 title="Clear all"
               >

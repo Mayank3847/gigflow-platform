@@ -1,38 +1,13 @@
-// SAFE BID HISTORY PAGE
-// Replace: src/pages/BidHistory.jsx
-// ============================================
-
 import { useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { Calendar, DollarSign, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 const BidHistory = () => {
-  // ✅ DEFENSIVE: Provide defaults
-  const { 
-    myBids = [] 
-  } = useSelector((state) => state.bids || {});
+  const { myBids } = useSafeSelector();
 
   useEffect(() => {
     console.log('BidHistory mounted, myBids:', myBids);
   }, [myBids]);
-
-  // ✅ DEFENSIVE: Check if array
-  if (!Array.isArray(myBids)) {
-    console.error('❌ myBids is not an array in BidHistory:', myBids);
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 text-lg mb-4">Error loading bid history</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg"
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -76,7 +51,6 @@ const BidHistory = () => {
         ) : (
           <div className="space-y-4">
             {myBids.map((bid) => {
-              // ✅ DEFENSIVE: Check bid exists
               if (!bid || !bid._id) {
                 console.warn('⚠️ Invalid bid in history:', bid);
                 return null;

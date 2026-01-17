@@ -1,30 +1,46 @@
+import { useEffect } from 'react';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
+import { fetchBidsByGig, hireBid, rejectBid } from '../store/slices/bidSlice';
 import { Loader, CheckCircle, XCircle } from 'lucide-react';
-import { useDispatch, useSelector } from 'react-redux';
-import { hireBid, rejectBid } from '../store/slices/bidSlice';
 
 const GigBidsModal = ({ gigId, onClose }) => {
   const dispatch = useDispatch();
+  const { bids, bidsLoading } = useSafeSelector();
 
-  const { bids, isLoading } = useSelector((state) => state.bids);
+  useEffect(() => {
+    if (gigId) {
+      dispatch(fetchBidsByGig(gigId));
+    }
+  }, [gigId, dispatch]);
 
-  const handleHire = (bidId, freelancerName) => {
+  const handleHire = async (bidId, freelancerName) => {
     const confirmHire = window.confirm(
       `Hire ${freelancerName}? This will reject all other bids.`
     );
     if (!confirmHire) return;
 
-    // ✅ OPTIMISTIC UI
-    dispatch(hireBid(bidId));
+    try {
+      await dispatch(hireBid(bidId)).unwrap();
+      alert('Freelancer hired successfully!');
+      onClose();
+    } catch (error) {
+      alert(error || 'Failed to hire freelancer');
+    }
   };
 
-  const handleReject = (bidId, freelancerName) => {
+  const handleReject = async (bidId, freelancerName) => {
     const confirmReject = window.confirm(
       `Reject ${freelancerName}'s bid? They can resubmit.`
     );
     if (!confirmReject) return;
 
-    // ✅ OPTIMISTIC UI
-    dispatch(rejectBid(bidId));
+    try {
+      await dispatch(rejectBid(bidId)).unwrap();
+      alert('Bid rejected successfully!');
+    } catch (error) {
+      alert(error || 'Failed to reject bid');
+    }
   };
 
   return (
@@ -42,21 +58,21 @@ const GigBidsModal = ({ gigId, onClose }) => {
         </div>
 
         {/* Loading */}
-        {isLoading && (
+        {bidsLoading && (
           <div className="flex justify-center py-12">
             <Loader className="animate-spin w-8 h-8 text-blue-600" />
           </div>
         )}
 
         {/* Empty */}
-        {!isLoading && bids.length === 0 && (
+        {!bidsLoading && bids.length === 0 && (
           <p className="text-center text-gray-500 py-8">
             No bids yet for this gig.
           </p>
         )}
 
         {/* Bids */}
-        {!isLoading && bids.length > 0 && (
+        {!bidsLoading && bids.length > 0 && (
           <div className="space-y-4">
             {bids.map((bid) => (
               <div
@@ -66,10 +82,10 @@ const GigBidsModal = ({ gigId, onClose }) => {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <p className="font-semibold">
-                      {bid.freelancerId.name}
+                      {bid.freelancerId?.name || 'Anonymous'}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {bid.freelancerId.email}
+                      {bid.freelancerId?.email || 'No email'}
                     </p>
                   </div>
 
@@ -95,12 +111,12 @@ const GigBidsModal = ({ gigId, onClose }) => {
                     ${bid.price}
                   </span>
 
-                  {/* ✅ OWNER ACTIONS */}
+                  {/* Owner Actions */}
                   {bid.status === 'pending' && (
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
-                          handleHire(bid._id, bid.freelancerId.name)
+                          handleHire(bid._id, bid.freelancerId?.name || 'Freelancer')
                         }
                         className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                       >
@@ -110,7 +126,7 @@ const GigBidsModal = ({ gigId, onClose }) => {
 
                       <button
                         onClick={() =>
-                          handleReject(bid._id, bid.freelancerId.name)
+                          handleReject(bid._id, bid.freelancerId?.name || 'Freelancer')
                         }
                         className="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                       >

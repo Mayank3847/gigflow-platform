@@ -7,7 +7,8 @@ import {
   useCallback,
 } from 'react';
 import { io } from 'socket.io-client';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import {
   addNotification,
   setNotifications,
@@ -17,19 +18,17 @@ import {
 const SocketContext = createContext();
 export const useSocket = () => useContext(SocketContext);
 
-// 🔑 Per-user notification storage
+// Per-user notification storage
 const getStorageKey = (userId) => `notifications_${userId}`;
 
 export const SocketProvider = ({ children }) => {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
 
-  const { user, isAuthenticated } = useSelector((state) => state.auth);
+  const { user, isAuthenticated } = useSafeSelector();
   const dispatch = useDispatch();
 
-  // ======================================================
-  // 🔕 MARK ALL AS READ
-  // ======================================================
+  // Mark all as read
   const markAllAsRead = useCallback(() => {
     if (!user?._id) return;
 
@@ -45,9 +44,7 @@ export const SocketProvider = ({ children }) => {
     dispatch(setNotifications(updated));
   }, [user, dispatch]);
 
-  // ======================================================
-  // 🧹 CLEAR ON LOGOUT
-  // ======================================================
+  // Clear on logout
   useEffect(() => {
     if (!isAuthenticated && socketRef.current) {
       console.log('🧹 Clearing notifications + socket on logout');
@@ -64,22 +61,20 @@ export const SocketProvider = ({ children }) => {
     }
   }, [isAuthenticated, user, dispatch]);
 
-  // ======================================================
-  // 🔌 SOCKET INIT
-  // ======================================================
+  // Socket init
   useEffect(() => {
     if (!isAuthenticated || !user?._id) {
       console.log('⏳ Waiting for authenticated user before socket init');
       return;
     }
 
-    if (socketRef.current) return; // ⛔ no duplicates
+    if (socketRef.current) return; // no duplicates
 
     console.log('🔌 Initializing socket for user:', user._id);
 
     const storageKey = getStorageKey(user._id);
 
-    // ♻️ Restore notifications
+    // Restore notifications
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
@@ -113,9 +108,7 @@ export const SocketProvider = ({ children }) => {
       setConnected(false);
     });
 
-    // ======================================================
-    // 🔔 CENTRAL NOTIFICATION HANDLER
-    // ======================================================
+    // Central notification handler
     const handleNotification = (payload, type) => {
       const notification = {
         id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -126,10 +119,10 @@ export const SocketProvider = ({ children }) => {
         read: false,
       };
 
-      // 1️⃣ Redux
+      // Redux
       dispatch(addNotification(notification));
 
-      // 2️⃣ Persist per user
+      // Persist per user
       const existing =
         JSON.parse(localStorage.getItem(storageKey)) || [];
 
@@ -138,7 +131,7 @@ export const SocketProvider = ({ children }) => {
         JSON.stringify([notification, ...existing])
       );
 
-      // 3️⃣ ACK BACK TO SERVER (delivery confirmed)
+      // ACK back to server
       socket.emit('notification:ack', {
         notificationId: notification.id,
         userId: user._id,
@@ -146,9 +139,7 @@ export const SocketProvider = ({ children }) => {
       });
     };
 
-    // ======================================================
-    // 📡 SOCKET EVENTS
-    // ======================================================
+    // Socket events
     socket.on('newBid', (data) => {
       console.log('📨 newBid');
       handleNotification(data, 'info');
@@ -178,7 +169,7 @@ export const SocketProvider = ({ children }) => {
       value={{
         socket: socketRef.current,
         connected,
-        markAllAsRead, // 🔕 exposed to UI
+        markAllAsRead,
       }}
     >
       {children}

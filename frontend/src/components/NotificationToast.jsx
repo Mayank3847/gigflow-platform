@@ -1,18 +1,22 @@
 import { useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { removeToast } from '../store/slices/notificationSlice';
 import { CheckCircle, X, AlertCircle, Briefcase } from 'lucide-react';
 
 const NotificationToast = () => {
-  const { toasts } = useSelector((state) => state.notifications?.notifications) || [];
+  const { notifications } = useSafeSelector();
   const dispatch = useDispatch();
+
+  // Filter for toast-type notifications
+  const toasts = notifications.filter((n) => n.type === 'toast' || n.showAsToast);
 
   useEffect(() => {
     if (toasts.length > 0) {
       const latestToast = toasts[0];
       const timer = setTimeout(() => {
         dispatch(removeToast(latestToast.id));
-      }, 5000); // Remove toast after 5 seconds
+      }, 5000);
 
       return () => clearTimeout(timer);
     }
@@ -53,10 +57,10 @@ const NotificationToast = () => {
     <div className="fixed top-20 right-4 z-50">
       <div
         className={`${getColor(
-          latestToast.type
+          latestToast.type || latestToast.variant || 'success'
         )} text-white px-6 py-4 rounded-lg shadow-2xl flex items-center space-x-3 min-w-80 max-w-md animate-slide-in`}
       >
-        {getIcon(latestToast.type)}
+        {getIcon(latestToast.type || latestToast.variant || 'success')}
         <p className="flex-1 font-medium">{latestToast.message}</p>
         <button
           onClick={() => dispatch(removeToast(latestToast.id))}

@@ -1,21 +1,9 @@
-// ============================================
-
-
-// ============================================
-// SAFE HOME PAGE
-// Replace: src/pages/Home.jsx (if not already safe)
-// ============================================
-
 import { Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSafeSelector } from '../hooks/useSafeSelector';
 import { Briefcase, Users, TrendingUp, ArrowRight } from 'lucide-react';
 
 const Home = () => {
-  // ✅ DEFENSIVE: Default values
-  const { 
-    user = null,
-    isAuthenticated = false 
-  } = useSelector((state) => state.auth || {});
+  const { user, isAuthenticated } = useSafeSelector();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
