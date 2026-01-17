@@ -1,10 +1,11 @@
+// pages/Login.jsx - COMPLETE FIXED VERSION
 import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { useSafeSelector } from '../hooks/useSafeSelector';
 import { useNavigate, Link } from 'react-router-dom';
 import { login, reset } from '../store/slices/authSlice';
 import { sessionManager } from '../utils/sessionManager';
-import { useToast } from '../context/ToastContext'; // ✅ Add this
+import { useToast } from '../context/ToastContext';
 import { LogIn, Loader } from 'lucide-react';
 
 const Login = () => {
@@ -15,25 +16,39 @@ const Login = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, authLoading, authError, isAuthenticated, authMessage } = useSafeSelector();
-  const { success, error } = useToast(); // ✅ Add this
+  
+  // ✅ CORRECT: Destructure ALL needed values from useSafeSelector
+  const { 
+    user, 
+    authLoading, 
+    authError, 
+    isAuthenticated, 
+    authMessage 
+  } = useSafeSelector();
+  
+  const { success, error } = useToast();
 
+  // Reset on mount
   useEffect(() => {
     dispatch(reset());
   }, [dispatch]);
 
+  // Handle successful login
   useEffect(() => {
     if (isAuthenticated && user) {
       sessionManager.markActive();
-      success(`Welcome back, ${user.name}! 👋`); // ✅ Beautiful toast
-      navigate('/gigs');
-      dispatch(reset());
+      success(`Welcome back, ${user.name}! 👋`);
+      setTimeout(() => {
+        navigate('/gigs');
+        dispatch(reset());
+      }, 1000);
     }
   }, [user, isAuthenticated, navigate, dispatch, success]);
 
+  // Handle login error
   useEffect(() => {
-    if (authError) {
-      error(authMessage || 'Login failed. Please check your credentials.'); // ✅ Beautiful toast
+    if (authError && authMessage) {
+      error(authMessage || 'Login failed. Please check your credentials.');
       dispatch(reset());
     }
   }, [authError, authMessage, dispatch, error]);
@@ -44,6 +59,7 @@ const Login = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('📝 Submitting login form:', formData.email);
     dispatch(login(formData));
   };
 
@@ -57,7 +73,9 @@ const Login = () => {
 
         <form onSubmit={handleSubmit} className="space-y-3 xs:space-y-4">
           <div>
-            <label className="block text-gray-700 mb-1 xs:mb-2 text-xs xs:text-sm sm:text-base">Email</label>
+            <label className="block text-gray-700 mb-1 xs:mb-2 text-xs xs:text-sm sm:text-base">
+              Email
+            </label>
             <input
               type="email"
               name="email"
@@ -66,11 +84,14 @@ const Login = () => {
               className="w-full px-3 xs:px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm sm:text-base"
               required
               disabled={authLoading}
+              autoComplete="email"
             />
           </div>
 
           <div>
-            <label className="block text-gray-700 mb-1 xs:mb-2 text-xs xs:text-sm sm:text-base">Password</label>
+            <label className="block text-gray-700 mb-1 xs:mb-2 text-xs xs:text-sm sm:text-base">
+              Password
+            </label>
             <input
               type="password"
               name="password"
@@ -79,13 +100,14 @@ const Login = () => {
               className="w-full px-3 xs:px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm sm:text-base"
               required
               disabled={authLoading}
+              autoComplete="current-password"
             />
           </div>
 
           <button
             type="submit"
             disabled={authLoading}
-            className="w-full bg-blue-600 text-white py-2 xs:py-2.5 rounded hover:bg-blue-700 transition disabled:bg-blue-300 flex items-center justify-center space-x-2 text-xs xs:text-sm sm:text-base"
+            className="w-full bg-blue-600 text-white py-2 xs:py-2.5 rounded hover:bg-blue-700 transition disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-xs xs:text-sm sm:text-base"
           >
             {authLoading ? (
               <>
