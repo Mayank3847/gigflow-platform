@@ -20,6 +20,7 @@ const MyGigs = () => {
   const [selectedGig, setSelectedGig] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const { success, error } = useToast();
 
   useEffect(() => {
     dispatch(getMyGigs());

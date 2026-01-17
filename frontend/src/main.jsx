@@ -6,6 +6,7 @@ import App from './App';
 import './index.css';
 import { store } from './store/store';
 import { debugStore } from './utils/debugStore';
+import { ToastProvider } from './context/ToastContext';
 
 // Debug store on load
 console.log('🚀 Application Starting...');
@@ -67,7 +68,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <Provider store={store}>
         <BrowserRouter>
+                <ToastProvider>
+
           <App />
+                  </ToastProvider>
+
         </BrowserRouter>
       </Provider>
     </ErrorBoundary>

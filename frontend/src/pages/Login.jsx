@@ -4,8 +4,8 @@ import { useSafeSelector } from '../hooks/useSafeSelector';
 import { useNavigate, Link } from 'react-router-dom';
 import { login, reset } from '../store/slices/authSlice';
 import { sessionManager } from '../utils/sessionManager';
+import { useToast } from '../context/ToastContext'; // ✅ Add this
 import { LogIn, Loader } from 'lucide-react';
-import { useToast } from '../context/ToastContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -16,6 +16,7 @@ const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, authLoading, authError, isAuthenticated, authMessage } = useSafeSelector();
+  const { success, error } = useToast(); // ✅ Add this
 
   useEffect(() => {
     dispatch(reset());
@@ -24,10 +25,7 @@ const Login = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       sessionManager.markActive();
-      useEffect(() => {
-    if (isAuthenticated && user) {
-      sessionManager.markActive();
-      success(`Welcome back, ${user.name}!`); // ✅ Beautiful toast
+      success(`Welcome back, ${user.name}! 👋`); // ✅ Beautiful toast
       navigate('/gigs');
       dispatch(reset());
     }
@@ -39,17 +37,6 @@ const Login = () => {
       dispatch(reset());
     }
   }, [authError, authMessage, dispatch, error]);
-      navigate('/gigs');
-      dispatch(reset());
-    }
-  }, [user, isAuthenticated, navigate, dispatch]);
-
-  useEffect(() => {
-    if (authError) {
-      alert(authMessage || 'Login failed. Please check your credentials.');
-      dispatch(reset());
-    }
-  }, [authError, authMessage, dispatch]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

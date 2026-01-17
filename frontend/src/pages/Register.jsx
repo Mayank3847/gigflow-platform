@@ -17,6 +17,7 @@ const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, authLoading, authError, isAuthenticated, authMessage } = useSafeSelector();
+  const { success, error, warning } = useToast();
 
   useEffect(() => {
     dispatch(reset());

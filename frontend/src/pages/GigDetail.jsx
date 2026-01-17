@@ -12,6 +12,7 @@ const GigDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
+  const { success, error, warning } = useToast();
 
   const { user } = useSafeSelector();
   const { bidsLoading, bidsError } = useSafeSelector();
