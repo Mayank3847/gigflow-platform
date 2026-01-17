@@ -5,6 +5,7 @@ import { useSafeSelector } from '../hooks/useSafeSelector';
 import { createBid, reset } from '../store/slices/bidSlice';
 import axios from 'axios';
 import { DollarSign, Calendar, User, ArrowLeft, Loader } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 const GigDetail = () => {
   const { id } = useParams();
@@ -47,12 +48,12 @@ const GigDetail = () => {
     e.preventDefault();
 
     if (!bidData.message.trim() || !bidData.price) {
-      alert('Please fill in all fields');
+      warning('Please fill in all fields'); // ✅
       return;
     }
 
     if (parseFloat(bidData.price) <= 0) {
-      alert('Price must be greater than 0');
+      warning('Price must be greater than 0'); // ✅
       return;
     }
 
@@ -65,11 +66,12 @@ const GigDetail = () => {
         message: bidData.message.trim()
       })).unwrap();
       
-      alert('Bid submitted successfully!');
+      success('Bid submitted successfully! 🎉'); // ✅
       setBidData({ message: '', price: '' });
       dispatch(reset());
     } catch (error) {
-      alert(error || 'Failed to submit bid');
+            error(err || 'Failed to submit bid'); // ✅
+
     } finally {
       setSubmitting(false);
     }

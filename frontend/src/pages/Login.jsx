@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { login, reset } from '../store/slices/authSlice';
 import { sessionManager } from '../utils/sessionManager';
 import { LogIn, Loader } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -23,7 +24,21 @@ const Login = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       sessionManager.markActive();
-      alert('Login successful! Welcome back.');
+      useEffect(() => {
+    if (isAuthenticated && user) {
+      sessionManager.markActive();
+      success(`Welcome back, ${user.name}!`); // ✅ Beautiful toast
+      navigate('/gigs');
+      dispatch(reset());
+    }
+  }, [user, isAuthenticated, navigate, dispatch, success]);
+
+  useEffect(() => {
+    if (authError) {
+      error(authMessage || 'Login failed. Please check your credentials.'); // ✅ Beautiful toast
+      dispatch(reset());
+    }
+  }, [authError, authMessage, dispatch, error]);
       navigate('/gigs');
       dispatch(reset());
     }

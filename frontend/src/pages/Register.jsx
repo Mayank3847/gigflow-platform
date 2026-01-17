@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { register, reset } from '../store/slices/authSlice';
 import { sessionManager } from '../utils/sessionManager';
 import { UserPlus, Loader } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -24,7 +25,7 @@ const Register = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       sessionManager.markActive();
-      alert('Account created successfully! Welcome to GigFlow.');
+      success(`Account created successfully! Welcome ${user.name} 🎉`); // ✅
       navigate('/gigs');
       dispatch(reset());
     }
@@ -32,7 +33,7 @@ const Register = () => {
 
   useEffect(() => {
     if (authError) {
-      alert(authMessage || 'Registration failed. Please try again.');
+       error(authMessage || 'Registration failed. Please try again.'); // ✅
       dispatch(reset());
     }
   }, [authError, authMessage, dispatch]);
@@ -45,7 +46,7 @@ const Register = () => {
     e.preventDefault();
     
     if (formData.password.length < 6) {
-      alert('Password must be at least 6 characters long.');
+      warning('Password must be at least 6 characters long.'); // ✅
       return;
     }
     

@@ -14,6 +14,7 @@ import {
   Save,
   Loader
 } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 const MyBids = () => {
   const dispatch = useDispatch();
@@ -95,12 +96,12 @@ const MyBids = () => {
 
   const handleUpdateSubmit = async (bidId) => {
     if (!editForm.price || !editForm.message) {
-      alert('Please fill in all fields');
+      warning('Please fill in all fields'); // ✅
       return;
     }
 
     if (editForm.price <= 0) {
-      alert('Price must be greater than 0');
+      warning('Price must be greater than 0'); // ✅
       return;
     }
 
@@ -111,9 +112,9 @@ const MyBids = () => {
         message: editForm.message
       })).unwrap();
       
-      setSuccessMessage('Bid updated successfully!');
+      success('Bid updated successfully! ✓'); // ✅
     } catch (error) {
-      setErrorMessage(error || 'Failed to update bid');
+      error(err || 'Failed to update bid'); // ✅
     }
   };
 

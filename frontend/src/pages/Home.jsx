@@ -2,9 +2,25 @@ import { Link } from 'react-router-dom';
 import { useSafeSelector } from '../hooks/useSafeSelector';
 import { Briefcase, Users, TrendingUp, ArrowRight } from 'lucide-react';
 
-const Home = () => {
-  const { user, isAuthenticated } = useSafeSelector();
+import { useSocket } from '../context/SocketContext';
+import { useToast } from '../context/ToastContext';
 
+
+const Home = () => {
+  const socket = useSocket();
+  const { success, info } = useToast();
+  const { user } = useSafeSelector();
+
+  const testSocketConnection = () => {
+    if (socket?.connected) {
+      success('Socket is connected! ✅');
+      console.log('Socket ID:', socket.socket?.id);
+      console.log('User ID:', user?._id);
+    } else {
+      info('Socket not connected. Try logging in.');
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Hero Section */}

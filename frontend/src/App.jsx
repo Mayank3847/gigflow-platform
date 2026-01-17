@@ -4,6 +4,8 @@ import { useDispatch } from 'react-redux';
 import { useSafeSelector } from './hooks/useSafeSelector';
 import { getMe } from './store/slices/authSlice';
 import { SocketProvider } from './context/SocketContext';
+import { ToastProvider } from './context/ToastContext'; // ✅ Add this
+
 import { sessionManager } from './utils/sessionManager';
 
 import Navbar from './components/Navbar';
@@ -65,6 +67,8 @@ function App() {
   }
 
   return (
+        <ToastProvider> {/* ✅ Add this wrapper */}
+
     <SocketProvider>
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -117,6 +121,7 @@ function App() {
         </Routes>
       </div>
     </SocketProvider>
+    </ToastProvider>
   );
 }
 

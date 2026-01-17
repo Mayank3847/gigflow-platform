@@ -9,6 +9,7 @@ import {
   reset,
 } from '../store/slices/bidSlice';
 import { DollarSign, Calendar, Users, Loader } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 const MyGigs = () => {
   const dispatch = useDispatch();
@@ -48,18 +49,18 @@ const MyGigs = () => {
   const handleHire = async (bidId) => {
     try {
       await dispatch(hireBid(bidId)).unwrap();
-      setSuccessMessage('Freelancer hired successfully!');
+      success('Freelancer hired successfully! 🎉'); // ✅
     } catch (error) {
-      setErrorMessage(error || 'Failed to hire freelancer');
+      error(err || 'Failed to hire freelancer'); // ✅
     }
   };
 
   const handleReject = async (bidId) => {
     try {
       await dispatch(rejectBid(bidId)).unwrap();
-      setSuccessMessage('Bid rejected successfully');
+      success('Bid rejected successfully'); // ✅
     } catch (error) {
-      setErrorMessage(error || 'Failed to reject bid');
+      error(err || 'Failed to reject bid'); // ✅
     }
   };
 

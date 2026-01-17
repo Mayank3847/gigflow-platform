@@ -4,6 +4,7 @@ import { useSafeSelector } from '../hooks/useSafeSelector';
 import { useNavigate } from 'react-router-dom';
 import { createGig, reset } from '../store/slices/gigSlice';
 import { PlusCircle, Loader, DollarSign, FileText, Briefcase } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 const PostGig = () => {
   const [formData, setFormData] = useState({
@@ -93,13 +94,13 @@ const PostGig = () => {
     
     if (!validateForm()) {
       console.log('❌ Form validation failed');
-      alert('Please fix the errors in the form');
+      warning('Please fix the errors in the form'); // ✅
       return;
     }
 
     if (!isAuthenticated && !user) {
       console.log('❌ User not authenticated');
-      alert('Please login to post a gig');
+      error('Please login to post a gig'); // ✅
       navigate('/login');
       return;
     }
@@ -114,7 +115,7 @@ const PostGig = () => {
         budget: parseFloat(formData.budget),
       })).unwrap();
 
-      alert('Gig posted successfully! Redirecting...');
+      success('Gig posted successfully! Redirecting... 🚀'); // ✅
       setFormData({ title: '', description: '', budget: '' });
       setFormErrors({});
       
@@ -123,7 +124,7 @@ const PostGig = () => {
         dispatch(reset());
       }, 1000);
     } catch (error) {
-      alert(error || 'Failed to create gig. Please try again.');
+      error(err || 'Failed to create gig. Please try again.'); // ✅
     } finally {
       setIsSubmitting(false);
     }
