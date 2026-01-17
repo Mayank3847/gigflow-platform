@@ -240,21 +240,25 @@ const PostGig = () => {
                 <span className="absolute left-3 xs:left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm xs:text-base">
                   $
                 </span>
-                <input
-                  type="number"
-                  id="budget"
-name="budget"
-value={formData.budget}
-onChange={handleChange}
-className={w-full pl-8 xs:pl-10 pr-3 xs:pr-4 py-2.5 xs:py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all text-xs xs:text-sm sm:text-base ${                   
-    formErrors.budget                        ? 'border-red-500 focus:ring-red-500'                   : 'border-gray-300 focus:ring-blue-500'                   }}
-placeholder="500"
-required
-min="1"
-max="1000000"
-step="0.01"
-disabled={isSubmitting}
+               <input
+  type="number"
+  id="budget"
+  name="budget"
+  value={formData.budget}
+  onChange={handleChange}
+  className={`w-full pl-8 xs:pl-10 pr-3 xs:pr-4 py-2.5 xs:py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all text-xs xs:text-sm sm:text-base ${
+    formErrors.budget
+      ? 'border-red-500 focus:ring-red-500'
+      : 'border-gray-300 focus:ring-blue-500'
+  }`}
+  placeholder="500"
+  required
+  min="1"
+  max="1000000"
+  step="0.01"
+  disabled={isSubmitting}
 />
+
 </div>
 {formErrors.budget && (
 <p className="mt-1 text-xs xs:text-sm text-red-500">
