@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { useSafeSelector } from './hooks/useSafeSelector';
@@ -20,7 +20,7 @@ import MyGigs from './pages/MyGigs';
 import MyBids from './pages/MyBids';
 import BidHistory from './pages/BidHistory';
 
-function AppContent() {
+function App() {
   const dispatch = useDispatch();
   const { user, authLoading } = useSafeSelector();
 
@@ -117,14 +117,6 @@ function AppContent() {
         </Routes>
       </div>
     </SocketProvider>
-  );
-}
-
-function App() {
-  return (
-    <Router>
-      <AppContent />
-    </Router>
   );
 }
 
