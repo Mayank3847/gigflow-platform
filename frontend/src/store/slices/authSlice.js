@@ -102,7 +102,7 @@ export const register = createAsyncThunk(
       // Store token if received
       if (token) {
         sessionManager.setSession(token, user);
-        localStorage.setItem('token', token);
+        // localStorage.setItem('token', token);
         sessionStorage.setItem('token', token);
         console.log('🔑 Token stored successfully');
       }
@@ -141,7 +141,7 @@ export const login = createAsyncThunk(
       // Store token if received
       if (token) {
         sessionManager.setSession(token, user);
-        localStorage.setItem('token', token);
+        // localStorage.setItem('token', token);
         sessionStorage.setItem('token', token);
         console.log('🔑 Token stored successfully');
       }
@@ -173,8 +173,8 @@ export const logout = createAsyncThunk(
       
       // Clear session data
       sessionManager.clearSession();
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
+      // localStorage.removeItem('token');
+      // sessionStorage.removeItem('token');
       
       // Clear notifications
       dispatch(clearNotifications());
@@ -185,8 +185,8 @@ export const logout = createAsyncThunk(
       
       // Clear session even if API call fails
       sessionManager.clearSession();
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
+      // localStorage.removeItem('token');
+      // sessionStorage.removeItem('token');
       dispatch(clearNotifications());
       
       return rejectWithValue(error.response?.data?.message || 'Logout failed');
