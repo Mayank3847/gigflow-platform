@@ -124,7 +124,7 @@ const PostGig = () => {
         dispatch(reset());
       }, 1000);
     } catch (error) {
-      error(err || 'Failed to create gig. Please try again.'); // ✅
+      error('Failed to create gig. Please try again.',error); // ✅
     } finally {
       setIsSubmitting(false);
     }

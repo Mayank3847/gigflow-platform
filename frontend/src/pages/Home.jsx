@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom';
 import { useSafeSelector } from '../hooks/useSafeSelector';
 import { Briefcase, Users, TrendingUp, ArrowRight } from 'lucide-react';
-
 import { useSocket } from '../context/SocketContext';
 import { useToast } from '../context/ToastContext';
-
 
 const Home = () => {
   const socket = useSocket();
   const { success, info } = useToast();
-  const { user } = useSafeSelector();
+  
+  // ✅ FIX: Get isAuthenticated from useSafeSelector
+  const { user, isAuthenticated } = useSafeSelector();
 
   const testSocketConnection = () => {
     if (socket?.connected) {
@@ -102,6 +102,18 @@ const Home = () => {
             </p>
           </div>
         </div>
+
+        {/* Socket Test Button - Development Only */}
+        {import.meta.env.DEV && (
+          <div className="mt-12 text-center">
+            <button
+              onClick={testSocketConnection}
+              className="bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition"
+            >
+              Test Socket Connection
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-// frontend/src/context/SocketContext.jsx - COMPLETE WORKING VERSION
+// frontend/src/context/SocketContext.jsx - COMPLETE FIXED VERSION WITH PERSISTENCE
 import {
   createContext,
   useContext,
@@ -14,6 +14,7 @@ import {
   addNotification,
   setNotifications,
   clearNotifications,
+  markAllAsRead as markAllAsReadAction,
 } from '../store/slices/notificationSlice';
 
 const SocketContext = createContext();
@@ -27,15 +28,28 @@ export const SocketProvider = ({ children }) => {
   const { user, isAuthenticated } = useSafeSelector();
   const dispatch = useDispatch();
 
+  // ✅ Mark all as read with localStorage sync
   const markAllAsRead = useCallback(() => {
     if (!user?._id) return;
+    
+    console.log('📖 Marking all notifications as read...');
+    
     const storageKey = getStorageKey(user._id);
     const existing = JSON.parse(localStorage.getItem(storageKey)) || [];
     const updated = existing.map((n) => ({ ...n, read: true }));
+    
+    // ✅ Sync to localStorage first
     localStorage.setItem(storageKey, JSON.stringify(updated));
+    console.log('💾 Marked all as read in localStorage');
+    
+    // ✅ Update Redux
+    dispatch(markAllAsReadAction());
     dispatch(setNotifications(updated));
+    
+    console.log('✅ All notifications marked as read');
   }, [user, dispatch]);
 
+  // ✅ Clear notifications on logout
   useEffect(() => {
     if (!isAuthenticated && socketRef.current) {
       console.log('🧹 Clearing notifications + socket on logout');
@@ -43,12 +57,14 @@ export const SocketProvider = ({ children }) => {
       socketRef.current = null;
       setConnected(false);
       dispatch(clearNotifications());
+      
       if (user?._id) {
         localStorage.removeItem(getStorageKey(user._id));
       }
     }
   }, [isAuthenticated, user, dispatch]);
 
+  // ✅ Initialize socket and restore notifications
   useEffect(() => {
     if (!isAuthenticated || !user?._id) {
       console.log('⏳ Waiting for authenticated user before socket init');
@@ -63,15 +79,19 @@ export const SocketProvider = ({ children }) => {
     console.log('🔌 Initializing socket for user:', user._id);
     const storageKey = getStorageKey(user._id);
 
-    // Restore notifications
+    // ✅ Restore notifications from localStorage
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         dispatch(setNotifications(parsed));
-        console.log('♻️ Restored', parsed.length, 'notifications');
-      } catch {
-        console.warn('⚠️ Failed to parse stored notifications');
+        console.log('♻️ Restored', parsed.length, 'notifications from storage');
+        
+        const unreadCount = parsed.filter(n => !n.read).length;
+        console.log('📊 Unread notifications:', unreadCount);
+      } catch (error) {
+        console.warn('⚠️ Failed to parse stored notifications:', error);
+        localStorage.removeItem(storageKey);
       }
     }
 
@@ -105,7 +125,7 @@ export const SocketProvider = ({ children }) => {
       setConnected(false);
     });
 
-    // Central notification handler
+    // ✅ Central notification handler with localStorage persistence
     const handleNotification = (payload, type) => {
       console.log('🔔 NOTIFICATION RECEIVED:', type, payload);
 
@@ -124,15 +144,20 @@ export const SocketProvider = ({ children }) => {
 
       console.log('📬 Adding notification to Redux:', notification);
 
-      // Redux
+      // ✅ Add to Redux
       dispatch(addNotification(notification));
 
-      // Persist
-      const existing = JSON.parse(localStorage.getItem(storageKey)) || [];
-      const updated = [notification, ...existing].slice(0, 50); // Keep last 50
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+      // ✅ Persist to localStorage
+      try {
+        const existing = JSON.parse(localStorage.getItem(storageKey)) || [];
+        const updated = [notification, ...existing].slice(0, 50); // Keep last 50
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+        console.log('💾 Notification saved to localStorage');
+      } catch (error) {
+        console.error('❌ Failed to save notification to localStorage:', error);
+      }
 
-      // ACK
+      // ✅ Send acknowledgment to backend
       socket.emit('notification:ack', {
         notificationId: notification.id,
         userId: user._id,
@@ -140,7 +165,7 @@ export const SocketProvider = ({ children }) => {
       });
     };
 
-    // Listen to ALL notification events
+    // ✅ Listen to ALL notification events
     socket.on('newBid', (data) => {
       console.log('📨 newBid event received:', data);
       handleNotification(data, 'info');
@@ -156,12 +181,13 @@ export const SocketProvider = ({ children }) => {
       handleNotification(data, 'warning');
     });
 
-    // Generic notification handler
+    // ✅ Generic notification handler
     socket.on('notification', (data) => {
       console.log('📬 Generic notification received:', data);
       handleNotification(data, data.type || 'info');
     });
 
+    // ✅ Cleanup on unmount
     return () => {
       if (socketRef.current) {
         console.log('🔌 Cleaning up socket');

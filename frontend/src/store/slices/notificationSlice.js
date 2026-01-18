@@ -1,4 +1,4 @@
-// frontend/src/store/slices/notificationSlice.js - COMPLETE VERSION
+// frontend/src/store/slices/notificationSlice.js - COMPLETE FIXED VERSION
 import { createSlice } from '@reduxjs/toolkit';
 
 const notificationSlice = createSlice({
@@ -18,10 +18,17 @@ const notificationSlice = createSlice({
       
       const notification = {
         ...action.payload,
-        id: action.payload.id || `${Date.now()}_${Math.random()}`,
+        id: action.payload.id || `${Date.now()}_${Math.random().toString(36).slice(2)}`,
         read: false,
         timestamp: action.payload.timestamp || new Date().toISOString(),
       };
+      
+      // ✅ Check for duplicates before adding
+      const isDuplicate = state.notifications.some(n => n.id === notification.id);
+      if (isDuplicate) {
+        console.log('⚠️ Duplicate notification ignored:', notification.id);
+        return;
+      }
       
       state.notifications.unshift(notification);
       state.unreadCount = state.notifications.filter(n => !n.read).length;
@@ -42,18 +49,19 @@ const notificationSlice = createSlice({
     },
     
     markAllAsRead: (state) => {
-      console.log('📖 Marking all as read');
+      console.log('📖 Marking all notifications as read');
       state.notifications = state.notifications.map((n) => ({ ...n, read: true }));
       state.unreadCount = 0;
     },
     
     markAsRead: (state, action) => {
-      console.log('📖 Marking as read:', action.payload);
+      console.log('📖 Marking notification as read:', action.payload);
       const notification = state.notifications.find((n) => n.id === action.payload);
       if (notification) {
         notification.read = true;
+        state.unreadCount = state.notifications.filter(n => !n.read).length;
+        console.log('✅ Notification marked as read. Unread count:', state.unreadCount);
       }
-      state.unreadCount = state.notifications.filter(n => !n.read).length;
     },
     
     setNotifications: (state, action) => {
@@ -63,18 +71,26 @@ const notificationSlice = createSlice({
         state.unreadCount = 0;
         return;
       }
+      
       console.log('📋 Setting notifications:', action.payload.length);
       state.notifications = action.payload;
+      
+      // ✅ Calculate unread count from loaded notifications
       state.unreadCount = action.payload.filter(n => !n.read).length;
+      console.log('✅ Notifications loaded. Total:', state.notifications.length, 'Unread:', state.unreadCount);
     },
     
     removeToast: (state, action) => {
-      state.notifications = state.notifications.filter((n) => n.id !== action.payload);
-      state.unreadCount = state.notifications.filter(n => !n.read).length;
+      // ✅ Don't remove from notifications array, just hide the toast
+      // Notifications should stay in the bell icon dropdown
+      console.log('🔕 Hiding toast (notification stays in dropdown):', action.payload);
+      // We don't actually remove anything here - just used for UI toast dismissal
     },
     
     updateUnreadCount: (state) => {
+      const oldCount = state.unreadCount;
       state.unreadCount = state.notifications.filter(n => !n.read).length;
+      console.log('🔄 Unread count updated:', oldCount, '→', state.unreadCount);
     },
   },
 });

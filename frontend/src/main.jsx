@@ -6,13 +6,12 @@ import App from './App';
 import './index.css';
 import { store } from './store/store';
 import { debugStore } from './utils/debugStore';
-import { ToastProvider } from './context/ToastContext';
 
 // Debug store on load
 console.log('🚀 Application Starting...');
 debugStore(store);
 
-// Add error boundary
+// Error boundary component
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -41,7 +40,11 @@ class ErrorBoundary extends React.Component {
               padding: '10px 20px', 
               fontSize: '16px', 
               cursor: 'pointer',
-              marginTop: '20px'
+              marginTop: '20px',
+              backgroundColor: '#4F46E5',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px'
             }}
           >
             Reload Page
@@ -51,7 +54,8 @@ class ErrorBoundary extends React.Component {
             background: '#f5f5f5', 
             padding: '10px',
             marginTop: '20px',
-            overflow: 'auto'
+            overflow: 'auto',
+            borderRadius: '8px'
           }}>
             {this.state.error?.stack}
           </pre>
@@ -63,16 +67,14 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Render application
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <Provider store={store}>
         <BrowserRouter>
-                <ToastProvider>
-
+          {/* ✅ ToastProvider is inside App.jsx, not here */}
           <App />
-                  </ToastProvider>
-
         </BrowserRouter>
       </Provider>
     </ErrorBoundary>

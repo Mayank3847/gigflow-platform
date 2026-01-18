@@ -1,4 +1,4 @@
-// frontend/src/components/NotificationDropdown.jsx - COMPLETE BEAUTIFUL VERSION
+// frontend/src/components/NotificationDropdown.jsx - FIXED WITH PERSISTENCE
 import { useState, useRef, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { useSafeSelector } from '../hooks/useSafeSelector';
@@ -13,18 +13,38 @@ import {
   Calendar,
   Sparkles
 } from 'lucide-react';
-import { removeNotification, clearNotifications, markAsRead } from '../store/slices/notificationSlice';
+import { 
+  removeNotification, 
+  clearNotifications, 
+  markAsRead,
+  markAllAsRead,
+  setNotifications 
+} from '../store/slices/notificationSlice';
 import { useNavigate } from 'react-router-dom';
 
 const NotificationDropdown = ({ onMarkAllRead }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { notifications } = useSafeSelector();
+  const { notifications, user } = useSafeSelector();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
 
-  // Calculate unread count
+  // ✅ Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // ✅ Helper to get storage key
+  const getStorageKey = () => `notifications_${user?._id}`;
+
+  // ✅ Helper to sync Redux state to localStorage
+  const syncToLocalStorage = (updatedNotifications) => {
+    if (!user?._id) return;
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(updatedNotifications));
+      console.log('💾 Notifications synced to localStorage');
+    } catch (error) {
+      console.error('❌ Failed to sync to localStorage:', error);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -68,8 +88,16 @@ const NotificationDropdown = ({ onMarkAllRead }) => {
   };
 
   const handleNotificationClick = (notification) => {
+    // ✅ Mark as read in Redux
     dispatch(markAsRead(notification.id));
     
+    // ✅ Update localStorage
+    const updatedNotifications = notifications.map(n => 
+      n.id === notification.id ? { ...n, read: true } : n
+    );
+    syncToLocalStorage(updatedNotifications);
+    
+    // ✅ Navigate if gig exists
     if (notification.gigId) {
       navigate(`/gigs/${notification.gigId}`);
       setIsOpen(false);
@@ -91,16 +119,44 @@ const NotificationDropdown = ({ onMarkAllRead }) => {
   };
 
   const handleClearAll = () => {
-    if (window.confirm('Clear all notifications?')) {
+    if (window.confirm('Clear all notifications? This cannot be undone.')) {
       dispatch(clearNotifications());
+      
+      // ✅ Clear from localStorage
+      if (user?._id) {
+        localStorage.removeItem(getStorageKey());
+        console.log('🧹 All notifications cleared from storage');
+      }
     }
   };
 
   const handleMarkAllRead = () => {
+    // ✅ Mark all as read in Redux
+    dispatch(markAllAsRead());
+    
+    // ✅ Update localStorage
+    const updatedNotifications = notifications.map(n => ({ ...n, read: true }));
+    syncToLocalStorage(updatedNotifications);
+    
+    // ✅ Call socket context callback if provided
     if (onMarkAllRead) {
       onMarkAllRead();
     }
-    dispatch({ type: 'notifications/markAllAsRead' });
+    
+    console.log('✅ All notifications marked as read');
+  };
+
+  const handleRemoveNotification = (e, notificationId) => {
+    e.stopPropagation();
+    
+    // ✅ Remove from Redux
+    dispatch(removeNotification(notificationId));
+    
+    // ✅ Update localStorage
+    const updatedNotifications = notifications.filter(n => n.id !== notificationId);
+    syncToLocalStorage(updatedNotifications);
+    
+    console.log('🗑️ Notification removed:', notificationId);
   };
 
   return (
@@ -224,10 +280,7 @@ const NotificationDropdown = ({ onMarkAllRead }) => {
 
                       {/* Remove Button */}
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          dispatch(removeNotification(notification.id));
-                        }}
+                        onClick={(e) => handleRemoveNotification(e, notification.id)}
                         className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition p-1.5 rounded-lg hover:bg-white hover:bg-opacity-50"
                       >
                         <X className="w-4 h-4" />

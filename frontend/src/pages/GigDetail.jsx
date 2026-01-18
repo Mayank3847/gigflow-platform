@@ -34,7 +34,7 @@ const GigDetail = () => {
         setGig(gigData);
       } catch (err) {
         console.error('❌ Error fetching gig:', err);
-        alert('Failed to load gig details');
+        error('Failed to load gig details');
         setGig(null);
       } finally {
         setLoading(false);
@@ -43,18 +43,18 @@ const GigDetail = () => {
 
     fetchGig();
     dispatch(reset());
-  }, [id, dispatch]);
+  }, [id, dispatch, error]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!bidData.message.trim() || !bidData.price) {
-      warning('Please fill in all fields'); // ✅
+      warning('Please fill in all fields');
       return;
     }
 
     if (parseFloat(bidData.price) <= 0) {
-      warning('Price must be greater than 0'); // ✅
+      warning('Price must be greater than 0');
       return;
     }
 
@@ -67,12 +67,13 @@ const GigDetail = () => {
         message: bidData.message.trim()
       })).unwrap();
       
-      success('Bid submitted successfully! 🎉'); // ✅
+      success('Bid submitted successfully! 🎉');
       setBidData({ message: '', price: '' });
       dispatch(reset());
-    } catch (error) {
-            error(err || 'Failed to submit bid'); // ✅
-
+    } catch (bidError) {
+      // ✅ FIX: Changed 'err' to 'bidError' to avoid confusion
+      console.error('❌ Bid submission error:', bidError);
+      error(bidError?.message || bidError || 'Failed to submit bid');
     } finally {
       setSubmitting(false);
     }

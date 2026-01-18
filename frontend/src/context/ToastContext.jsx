@@ -1,8 +1,10 @@
+// frontend/src/context/ToastContext.jsx - COMPLETE FIXED VERSION
 import { createContext, useContext, useState, useCallback } from 'react';
-import { CheckCircle, AlertCircle, Info, X, Sparkles } from 'lucide-react';
+import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 
 const ToastContext = createContext();
 
+// ✅ EXPORT useToast hook - THIS WAS MISSING
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
@@ -21,6 +23,7 @@ export const ToastProvider = ({ children }) => {
     console.log('🍞 Adding toast:', toast);
     setToasts((prev) => [...prev, toast]);
     
+    // Auto-remove after 5 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
@@ -58,11 +61,12 @@ export const ToastProvider = ({ children }) => {
   );
 };
 
+// ✅ Toast Container Component
 const ToastContainer = ({ toasts, removeToast }) => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] space-y-3">
+    <div className="fixed bottom-6 right-6 z-[9999] space-y-3 pointer-events-none">
       {toasts.map((toast) => (
         <Toast key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
       ))}
@@ -70,6 +74,7 @@ const ToastContainer = ({ toasts, removeToast }) => {
   );
 };
 
+// ✅ Individual Toast Component
 const Toast = ({ toast, onClose }) => {
   const styles = {
     success: {
@@ -111,6 +116,7 @@ const Toast = ({ toast, onClose }) => {
         text-white rounded-2xl shadow-2xl p-5 min-w-[360px] max-w-md
         transform transition-all duration-300 animate-slide-up
         border border-white border-opacity-20
+        pointer-events-auto
       `}
     >
       <div className="flex items-start space-x-4">
