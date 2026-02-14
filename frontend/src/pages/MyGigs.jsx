@@ -18,51 +18,56 @@ const MyGigs = () => {
   const { bids, bidsLoading } = useSafeSelector();
 
   const [selectedGig, setSelectedGig] = useState(null);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
   const { success, error } = useToast();
 
   useEffect(() => {
     dispatch(getMyGigs());
   }, [dispatch]);
 
-  useEffect(() => {
-    if (successMessage) {
-      alert(successMessage);
-      setSuccessMessage('');
-
-      if (selectedGig) {
-        dispatch(fetchBidsByGig(selectedGig));
-      }
-    }
-
-    if (errorMessage) {
-      alert(errorMessage);
-      setErrorMessage('');
-    }
-  }, [successMessage, errorMessage, dispatch, selectedGig]);
-
   const handleViewBids = (gigId) => {
     setSelectedGig(gigId);
     dispatch(fetchBidsByGig(gigId));
   };
 
-// ✅ FIXED
-const handleHire = async (bidId) => {
-  try {
-    await dispatch(hireBid(bidId)).unwrap();
-    success('Freelancer hired successfully! 🎉');
-  } catch (err) { // ✅ Renamed
-    error(err?.message || err || 'Failed to hire freelancer');
-  }
-};
+  const handleHire = async (bidId) => {
+    try {
+      // ✅ Hire the freelancer
+      await dispatch(hireBid(bidId)).unwrap();
+      success('Freelancer hired successfully! 🎉');
+      
+      // ✅ CRITICAL FIX: Refresh the gigs list to show updated status
+      await dispatch(getMyGigs()).unwrap();
+      
+      // ✅ Close the modal after successful hire
+      setSelectedGig(null);
+      
+      // ✅ Reset bid state
+      dispatch(reset());
+      
+    } catch (err) {
+      error(err?.message || err || 'Failed to hire freelancer');
+    }
+  };
+
   const handleReject = async (bidId) => {
     try {
+      // ✅ Reject the bid
       await dispatch(rejectBid(bidId)).unwrap();
-      success('Bid rejected successfully'); // ✅
-    } catch (error) {
-      error(err || 'Failed to reject bid'); // ✅
+      success('Bid rejected successfully');
+      
+      // ✅ CRITICAL FIX: Refresh bids list to show updated status
+      if (selectedGig) {
+        await dispatch(fetchBidsByGig(selectedGig)).unwrap();
+      }
+      
+    } catch (err) {
+      error(err?.message || err || 'Failed to reject bid');
     }
+  };
+
+  const handleCloseModal = () => {
+    setSelectedGig(null);
+    dispatch(reset());
   };
 
   if (gigsLoading) {
@@ -99,8 +104,12 @@ const handleHire = async (bidId) => {
                 >
                   <div className="flex justify-between mb-2">
                     <h3 className="font-bold">{gig.title || 'Untitled'}</h3>
-                    <span className="text-sm text-gray-500">
-                      {gig.status || 'unknown'}
+                    <span className={`text-sm px-3 py-1 rounded-full font-semibold ${
+                      gig.status === 'open' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {gig.status === 'open' ? '🟢 Open' : '🔒 Filled'}
                     </span>
                   </div>
 
@@ -120,13 +129,20 @@ const handleHire = async (bidId) => {
                     </span>
                   </div>
 
-                  <button
-                    onClick={() => handleViewBids(gig._id)}
-                    className="w-full bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-700 transition"
-                  >
-                    <Users size={18} />
-                    View Bids
-                  </button>
+                  {/* ✅ Only show "View Bids" button if gig is still open */}
+                  {gig.status === 'open' ? (
+                    <button
+                      onClick={() => handleViewBids(gig._id)}
+                      className="w-full bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-700 transition"
+                    >
+                      <Users size={18} />
+                      View Bids
+                    </button>
+                  ) : (
+                    <div className="w-full bg-gray-100 text-gray-600 py-2 rounded text-center font-semibold">
+                      ✅ Position Filled
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -140,7 +156,7 @@ const handleHire = async (bidId) => {
               <div className="flex justify-between mb-4">
                 <h2 className="text-xl font-bold">Bids for this Gig</h2>
                 <button 
-                  onClick={() => setSelectedGig(null)}
+                  onClick={handleCloseModal}
                   className="text-2xl text-gray-500 hover:text-gray-700 w-8 h-8 flex items-center justify-center"
                 >
                   ×
@@ -184,6 +200,7 @@ const handleHire = async (bidId) => {
                           </span>
                         </div>
 
+                        {/* ✅ Only show Hire/Reject buttons if bid is pending */}
                         {bid.status === 'pending' && (
                           <div className="flex gap-2">
                             <button
