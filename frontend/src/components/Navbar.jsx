@@ -9,7 +9,7 @@ import NotificationDropdown from './NotificationDropdown';
 import { useSocket } from '../context/SocketContext';
 
 const Navbar = () => {
-  const { user, isAuthenticated, notifications, unreadCount } = useSafeSelector();
+  const { user, isAuthenticated } = useSafeSelector(); // ✅ REMOVED notifications and unreadCount
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,12 +72,8 @@ const Navbar = () => {
                   + Post Gig
                 </Link>
 
-                {/* Notification Dropdown */}
-                <NotificationDropdown
-                  notifications={notifications}
-                  unreadCount={unreadCount}
-                  onMarkAllRead={socket?.markAllAsRead}
-                />
+                {/* ✅ FIXED: Notification Dropdown - Only pass onMarkAllRead */}
+                <NotificationDropdown onMarkAllRead={socket?.markAllAsRead} />
 
                 <div className="flex items-center space-x-2 bg-blue-700 px-4 py-2 rounded-lg">
                   <User size={14} />
@@ -97,11 +93,8 @@ const Navbar = () => {
 
               {/* Mobile Right */}
               <div className="xl:hidden flex items-center space-x-2">
-                <NotificationDropdown
-                  notifications={notifications}
-                  unreadCount={unreadCount}
-                  onMarkAllRead={socket?.markAllAsRead}
-                />
+                {/* ✅ FIXED: Notification Dropdown - Only pass onMarkAllRead */}
+                <NotificationDropdown onMarkAllRead={socket?.markAllAsRead} />
                 <button
                   className="p-2 hover:bg-blue-700 rounded-lg transition"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
