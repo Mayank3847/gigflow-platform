@@ -1,4 +1,4 @@
-// server.js - Node 22 Compatible Version
+// server.js - Node 22 Compatible Version with CORS Fix
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
@@ -20,10 +20,11 @@ app.set('trust proxy', 1);
 // =======================
 const allowedOrigins = [
   process.env.CLIENT_URL,
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:5174',
-  'https://gigflow-platform-ms7295.netlify.app',
+  'http://localhost:5173',      // Vite dev server
+  'http://localhost:4173',      // ✅ FIXED: Added Vite preview server
+  'http://localhost:3000',      // Common dev port
+  'http://localhost:5174',      // Alternative dev port
+  'https://gigflow-platform-ms7295.netlify.app',  // Production
 ].filter(Boolean);
 
 console.log('✅ Allowed origins:', allowedOrigins);
@@ -83,7 +84,7 @@ app.use(cookieParser());
 
 // Request logger
 app.use((req, res, next) => {
-  console.log(`📥 ${req.method} ${req.path}`);
+  console.log(`🔥 ${req.method} ${req.path}`);
   next();
 });
 
@@ -264,6 +265,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 Port: ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🗄️  MongoDB: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Connecting...'}`);
+  console.log(`🔗 Allowed Origins:`);
+  allowedOrigins.forEach(origin => console.log(`   - ${origin}`));
   console.log('='.repeat(50));
 });
 
