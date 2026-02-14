@@ -20,14 +20,17 @@ const PostGig = () => {
   
   const { user, isAuthenticated, gigsLoading, gigsError } = useSafeSelector();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // ✅ FIX #1: Destructure ALL toast functions including 'warning'
+  const { success, error, warning } = useToast();
 
   useEffect(() => {
     if (!isAuthenticated && !user) {
       console.log('❌ User not authenticated - redirecting to login');
-      alert('Please login to post a gig');
+      warning('Please login to post a gig');
       navigate('/login', { state: { from: '/post-gig' } });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, warning]);
 
   useEffect(() => {
     setHasShownToast(false);
@@ -94,13 +97,13 @@ const PostGig = () => {
     
     if (!validateForm()) {
       console.log('❌ Form validation failed');
-      warning('Please fix the errors in the form'); // ✅
+      warning('Please fix the errors in the form');
       return;
     }
 
     if (!isAuthenticated && !user) {
       console.log('❌ User not authenticated');
-      error('Please login to post a gig'); // ✅
+      error('Please login to post a gig');
       navigate('/login');
       return;
     }
@@ -109,13 +112,15 @@ const PostGig = () => {
 
     try {
       console.log('🚀 Dispatching createGig action');
-      await dispatch(createGig({
+      const result = await dispatch(createGig({
         title: formData.title.trim(),
         description: formData.description.trim(),
         budget: parseFloat(formData.budget),
       })).unwrap();
 
-      success('Gig posted successfully! Redirecting... 🚀'); // ✅
+      console.log('✅ Gig created successfully:', result);
+      success('Gig posted successfully! Redirecting... 🚀');
+      
       setFormData({ title: '', description: '', budget: '' });
       setFormErrors({});
       
@@ -123,8 +128,11 @@ const PostGig = () => {
         navigate('/my-gigs');
         dispatch(reset());
       }, 1000);
-    } catch (error) {
-      error('Failed to create gig. Please try again.',error); // ✅
+      
+    // ✅ FIX #2: Rename catch parameter to avoid conflict with error() function
+    } catch (err) {
+      console.error('❌ Failed to create gig:', err);
+      error(err?.message || err || 'Failed to create gig. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -241,78 +249,78 @@ const PostGig = () => {
                 <span className="absolute left-3 xs:left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm xs:text-base">
                   $
                 </span>
-               <input
-  type="number"
-  id="budget"
-  name="budget"
-  value={formData.budget}
-  onChange={handleChange}
-  className={`w-full pl-8 xs:pl-10 pr-3 xs:pr-4 py-2.5 xs:py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all text-xs xs:text-sm sm:text-base ${
-    formErrors.budget
-      ? 'border-red-500 focus:ring-red-500'
-      : 'border-gray-300 focus:ring-blue-500'
-  }`}
-  placeholder="500"
-  required
-  min="1"
-  max="1000000"
-  step="0.01"
-  disabled={isSubmitting}
-/>
+                <input
+                  type="number"
+                  id="budget"
+                  name="budget"
+                  value={formData.budget}
+                  onChange={handleChange}
+                  className={`w-full pl-8 xs:pl-10 pr-3 xs:pr-4 py-2.5 xs:py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all text-xs xs:text-sm sm:text-base ${
+                    formErrors.budget
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                  placeholder="500"
+                  required
+                  min="1"
+                  max="1000000"
+                  step="0.01"
+                  disabled={isSubmitting}
+                />
+              </div>
+              {formErrors.budget && (
+                <p className="mt-1 text-xs xs:text-sm text-red-500">
+                  {formErrors.budget}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Set your project budget (min: $1, max: $1,000,000)
+              </p>
+            </div>
 
-</div>
-{formErrors.budget && (
-<p className="mt-1 text-xs xs:text-sm text-red-500">
-{formErrors.budget}
-</p>
-)}
-<p className="mt-1 text-xs text-gray-500">
-Set your project budget (min: $1, max: $1,000,000)
-</p>
-</div>
-{/* Action Buttons */}
-        <div className="flex flex-col xs:flex-row gap-3 xs:gap-4 pt-4">
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={isSubmitting}
-            className="w-full xs:w-auto px-6 py-2.5 xs:py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold text-sm xs:text-base disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-          
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full xs:flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 xs:py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition font-semibold text-sm xs:text-base disabled:from-blue-300 disabled:to-blue-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader className="animate-spin w-5 h-5" />
-                <span>Posting Gig...</span>
-              </>
-            ) : (
-              <>
-                <PlusCircle className="w-5 h-5" />
-                <span>Post Gig</span>
-              </>
-            )}
-          </button>
+            {/* Action Buttons */}
+            <div className="flex flex-col xs:flex-row gap-3 xs:gap-4 pt-4">
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={isSubmitting}
+                className="w-full xs:w-auto px-6 py-2.5 xs:py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold text-sm xs:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full xs:flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 xs:py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition font-semibold text-sm xs:text-base disabled:from-blue-300 disabled:to-blue-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader className="animate-spin w-5 h-5" />
+                    <span>Posting Gig...</span>
+                  </>
+                ) : (
+                  <>
+                    <PlusCircle className="w-5 h-5" />
+                    <span>Post Gig</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* Info Box */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs xs:text-sm text-blue-800">
+              <strong>💡 Tip:</strong> Be as detailed as possible in your description to attract 
+              the right freelancers. Include specific requirements, deliverables, and timeline 
+              expectations.
+            </p>
+          </div>
         </div>
-      </form>
-
-      {/* Info Box */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-xs xs:text-sm text-blue-800">
-          <strong>💡 Tip:</strong> Be as detailed as possible in your description to attract 
-          the right freelancers. Include specific requirements, deliverables, and timeline 
-          expectations.
-        </p>
       </div>
     </div>
-  </div>
-</div>
   );
-
 };
+
 export default PostGig;

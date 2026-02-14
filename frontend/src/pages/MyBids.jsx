@@ -17,6 +17,8 @@ import {
 import { useToast } from '../context/ToastContext';
 
 const MyBids = () => {
+    const { success, error, warning } = useToast(); // ✅ Add this line
+
   const dispatch = useDispatch();
   
   const { myBids, bidsLoading } = useSafeSelector();
@@ -113,9 +115,11 @@ const MyBids = () => {
       })).unwrap();
       
       success('Bid updated successfully! ✓'); // ✅
-    } catch (error) {
-      error(err || 'Failed to update bid'); // ✅
-    }
+    
+// ✅ FIXED
+} catch (err) {
+  error(err?.message || err || 'Failed to update bid');
+}
   };
 
   const canEditBid = (bid) => {

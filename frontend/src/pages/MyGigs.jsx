@@ -47,15 +47,15 @@ const MyGigs = () => {
     dispatch(fetchBidsByGig(gigId));
   };
 
-  const handleHire = async (bidId) => {
-    try {
-      await dispatch(hireBid(bidId)).unwrap();
-      success('Freelancer hired successfully! 🎉'); // ✅
-    } catch (error) {
-      error(err || 'Failed to hire freelancer'); // ✅
-    }
-  };
-
+// ✅ FIXED
+const handleHire = async (bidId) => {
+  try {
+    await dispatch(hireBid(bidId)).unwrap();
+    success('Freelancer hired successfully! 🎉');
+  } catch (err) { // ✅ Renamed
+    error(err?.message || err || 'Failed to hire freelancer');
+  }
+};
   const handleReject = async (bidId) => {
     try {
       await dispatch(rejectBid(bidId)).unwrap();
