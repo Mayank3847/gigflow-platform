@@ -1,67 +1,89 @@
-// backend/models/Bid.js - FIXED VERSION
 const mongoose = require('mongoose');
 
 const bidSchema = new mongoose.Schema({
   gigId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Gig',
-    required: [true, 'Gig ID is required'],
+    required: true,
+    index: true  // Regular index for faster queries
   },
   freelancerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Freelancer ID is required'],
+    required: true,
+    index: true  // Regular index for faster queries
   },
   message: {
     type: String,
-    required: [true, 'Message is required'],
+    required: true,
     trim: true,
-    minlength: [10, 'Message must be at least 10 characters'],
-    maxlength: [1000, 'Message cannot exceed 1000 characters'],
+    minlength: [10, 'Message must be at least 10 characters']
   },
   price: {
     type: Number,
-    required: [true, 'Price is required'],
-    min: [0.01, 'Price must be greater than 0'],
+    required: true,
+    min: [0, 'Price must be positive']
   },
   status: {
     type: String,
-    enum: {
-      values: ['pending', 'hired', 'rejected'],
-      message: 'Status must be pending, hired, or rejected'
-    },
+    enum: ['pending', 'hired', 'rejected'],
     default: 'pending',
-  },
+    index: true  // Index for faster status queries
+  }
 }, {
-  timestamps: true,
+  timestamps: true
 });
 
-// ✅ FIXED: Conditional unique index - only prevent duplicate PENDING bids
-// Allows users to resubmit after rejection
+// ✅ COMPOUND INDEX - Improves query performance
+// This makes queries faster but allows multiple bids from same freelancer
+bidSchema.index({ gigId: 1, freelancerId: 1, status: 1 });
+
+// ✅ PARTIAL UNIQUE INDEX - Only one PENDING bid per freelancer per gig
+// This prevents duplicate pending bids but allows re-bidding after rejection!
+// The magic is in "partialFilterExpression" - index only applies to pending bids
 bidSchema.index(
-  { gigId: 1, freelancerId: 1, status: 1 },
-  {
-    unique: true,
+  { gigId: 1, freelancerId: 1 }, 
+  { 
+    unique: true, 
+    sparse: true,
     partialFilterExpression: { status: 'pending' },
-    name: 'unique_pending_bid_per_gig'
+    name: 'unique_pending_bid'  // Named for easy identification
   }
 );
 
-// Additional indexes for query performance
-bidSchema.index({ gigId: 1, status: 1 });
-bidSchema.index({ freelancerId: 1, createdAt: -1 });
-bidSchema.index({ status: 1, createdAt: -1 });
-
-// ✅ Virtual for populated gig title (useful for queries)
-bidSchema.virtual('gigTitle', {
-  ref: 'Gig',
-  localField: 'gigId',
-  foreignField: '_id',
-  justOne: true,
+// Virtual for bid age
+bidSchema.virtual('age').get(function() {
+  return Math.floor((Date.now() - this.createdAt) / 1000 / 60); // age in minutes
 });
 
-// ✅ Ensure virtuals are included in JSON
-bidSchema.set('toJSON', { virtuals: true });
-bidSchema.set('toObject', { virtuals: true });
+// Method to check if bid can be updated
+bidSchema.methods.canBeUpdated = function() {
+  return this.status === 'pending';
+};
+
+// Static method to find pending bid for a specific freelancer on a gig
+bidSchema.statics.findPendingBid = function(gigId, freelancerId) {
+  return this.findOne({ gigId, freelancerId, status: 'pending' });
+};
+
+// Static method to count bids for a gig
+bidSchema.statics.countBidsForGig = function(gigId) {
+  return this.countDocuments({ gigId });
+};
+
+// Pre-save hook to validate
+bidSchema.pre('save', function(next) {
+  // Ensure message is not empty after trimming
+  if (!this.message || this.message.trim().length < 10) {
+    next(new Error('Message must be at least 10 characters'));
+  }
+  
+  // Ensure price is positive
+  if (this.price <= 0) {
+    next(new Error('Price must be greater than 0'));
+  }
+  
+  next();
+});
 
 module.exports = mongoose.model('Bid', bidSchema);
